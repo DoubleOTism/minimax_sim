@@ -16,3 +16,6 @@ TREE_NO_HEURISTIC = "The abstract tree has no heuristic, so a depth limit is not
 # session
 TRACE_LIMIT = "Run stopped: the limit of {limit} events was exceeded. Lower the depth limit or pick a position further into the game."
 TREE_TOO_BIG = "The tree is too big to draw (limit {limit} nodes). Lower the depth limit or pick a position further into the game."
+
+# gui
+APP_TITLE = "Minimax and alpha-beta pruning simulator"
