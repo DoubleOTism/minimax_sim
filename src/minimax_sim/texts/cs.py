@@ -16,3 +16,6 @@ TREE_NO_HEURISTIC = "Abstraktní strom nemá heuristiku, limit hloubky pro něj 
 # session
 TRACE_LIMIT = "Běh zastaven: překročen limit {limit} událostí. Snižte limit hloubky nebo zvolte rozehranou pozici."
 TREE_TOO_BIG = "Strom je příliš velký na vykreslení (limit {limit} uzlů). Snižte limit hloubky nebo zvolte rozehranou pozici."
+
+# gui
+APP_TITLE = "Simulátor minimaxu a alfa-beta prořezávání"

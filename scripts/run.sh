@@ -17,4 +17,10 @@ cd "$(dirname "$0")/.."
 # Trees with more nodes than this are not drawn
 # export MINIMAX_MAX_DRAWN_NODES=1500
 
+# How the window opens: window, maximized or fullscreen
+# export MINIMAX_WINDOW_MODE=maximized
+
+# Part of the screen a normal window takes, 0.8 = 80 %
+# export MINIMAX_WINDOW_SCALE=0.8
+
 exec .venv/bin/python -m minimax_sim "$@"
