@@ -2,8 +2,8 @@
 Tests for minimax and alpha-beta.
 """
 
-from minimax_sim.core.events import Exit, ValueKind, Prune
-from minimax_sim.core.search import minimax, alphabeta
+from minimax_sim.core.events import Exit, Prune, ValueKind
+from minimax_sim.core.search import alphabeta, minimax
 from tests.helpers import leaves, principal_variation, prunes, run, visited
 
 

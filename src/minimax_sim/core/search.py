@@ -9,7 +9,7 @@ from collections.abc import Generator
 from dataclasses import dataclass
 from math import inf
 
-from .events import Enter, Event, Exit, Leaf, LeafReason, NodeId, ValueKind, BoundUpdate, Prune
+from .events import BoundUpdate, Enter, Event, Exit, Leaf, LeafReason, NodeId, Prune, ValueKind
 from .game import Game
 
 

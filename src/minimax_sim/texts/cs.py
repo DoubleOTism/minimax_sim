@@ -19,3 +19,14 @@ TREE_TOO_BIG = "Strom je příliš velký na vykreslení (limit {limit} uzlů). 
 
 # gui
 APP_TITLE = "Simulátor minimaxu a alfa-beta prořezávání"
+STEP_TO_START = "Na začátek"
+STEP_BACK = "Krok zpět"
+STEP_FORWARD = "Krok vpřed"
+STEP_TO_END = "Na konec"
+STEP_COUNTER = "Krok {current} z {total}"
+STEP_COUNTER_UNKNOWN_TOTAL = "Krok {current}"
+ALGORITHM_MINIMAX = "Minimax"
+ALGORITHM_ALPHABETA = "Alfa-beta"
+PRUNE_GE = "Prořezávat při α ≥ β"
+PRUNE_GT = "Prořezávat při α > β"
+HIDE_UNVISITED = "Skrýt nenavštívené"

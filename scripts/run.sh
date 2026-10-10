@@ -23,4 +23,7 @@ cd "$(dirname "$0")/.."
 # Part of the screen a normal window takes, 0.8 = 80 %
 # export MINIMAX_WINDOW_SCALE=0.8
 
+# Colour themes: system, light, or dark
+# export MINIMAX_THEME=dark
+
 exec .venv/bin/python -m minimax_sim "$@"

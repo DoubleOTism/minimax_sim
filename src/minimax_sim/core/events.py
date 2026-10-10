@@ -17,7 +17,6 @@ The index is the position in `game.moves(state)`.
 from dataclasses import dataclass
 from enum import Enum
 
-
 # Just a defined tuple not to repeat it till the end of the world everywhere
 NodeId = tuple[int, ...]
 
