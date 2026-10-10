@@ -66,3 +66,8 @@ WINDOW_MODE = _choice("MINIMAX_WINDOW_MODE", "window", ("window", "maximized", "
 
 # Defines the default scale of the window if running in windowed render mode, 0.8 = 80 %
 WINDOW_SCALE = _fraction("MINIMAX_WINDOW_SCALE", 0.8)
+
+# Color themes for the app. System follows the currently set theme (tested on Breeze Dark)
+# Light uses the default Qt Fusion theme, dark uses colour-edited Fusion default.
+# Dark can be customized in /gui/theme.py
+THEME = _choice("MINIMAX_THEME", "system", ("system", "light", "dark"))

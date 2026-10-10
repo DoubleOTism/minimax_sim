@@ -19,3 +19,14 @@ TREE_TOO_BIG = "The tree is too big to draw (limit {limit} nodes). Lower the dep
 
 # gui
 APP_TITLE = "Minimax and alpha-beta pruning simulator"
+STEP_TO_START = "To start"
+STEP_BACK = "Step back"
+STEP_FORWARD = "Step forward"
+STEP_TO_END = "To end"
+STEP_COUNTER = "Step {current} of {total}"
+STEP_COUNTER_UNKNOWN_TOTAL = "Step {current}"
+ALGORITHM_MINIMAX = "Minimax"
+ALGORITHM_ALPHABETA = "Alpha-beta"
+PRUNE_GE = "Prune when α ≥ β"
+PRUNE_GT = "Prune when α > β"
+HIDE_UNVISITED = "Hide unvisited"
