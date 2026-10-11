@@ -11,6 +11,7 @@ from minimax_sim.core.game import Game
 from minimax_sim.core.search import Search, alphabeta, minimax
 from minimax_sim.session.layout import Layout, layout
 from minimax_sim.session.snapshot import Snapshot
+from minimax_sim.session.stats import Stats, count
 from minimax_sim.session.trace import Trace
 
 
@@ -33,6 +34,7 @@ class Controller:
         self._trace: Trace | None = None
         self._layout: Layout | None = None
         self._cached_snapshot: tuple[tuple[int, bool], Snapshot] | None = None
+        self._cached_stats: tuple[bool, dict[Algorithm, Stats | None]] | None = None
 
     #####
     # setup
@@ -42,6 +44,7 @@ class Controller:
     def load(self, game: Game, state, depth_limit: int | None = None) -> None:
         self.game, self.state, self.depth_limit = game, state, depth_limit
         self._layout = layout(game, state, depth_limit)
+        self._cached_stats = None
         self._restart()
 
     # Switch between minimax and alpha-beta, the run starts again
@@ -54,15 +57,15 @@ class Controller:
         self.prune_on_equal = prune_on_equal
         self._restart()
 
-    # Fresh search of the loaded position with the current settings
-    def _new_search(self) -> Search:
-        if self.algorithm is Algorithm.MINIMAX:
+    # Fresh search of the loaded position with the given algorithm and the current pruning rule
+    def _new_search(self, algorithm: Algorithm) -> Search:
+        if algorithm is Algorithm.MINIMAX:
             return minimax(self.game, self.state, self.depth_limit)
         return alphabeta(self.game, self.state, self.depth_limit, prune_on_equal=self.prune_on_equal)
 
     # Throw the old run away and go back before the first step
     def _restart(self) -> None:
-        self._trace = Trace(self._new_search())
+        self._trace = Trace(self._new_search(self.algorithm))
         self._cached_snapshot = None
         self.position = -1
 
@@ -129,3 +132,19 @@ class Controller:
         if self._layout is not None:
             return None
         return texts.TREE_TOO_BIG.format(limit=config.MAX_DRAWN_NODES)
+
+    # Counters of whole runs of both algorithms, None for a run stopped by the event limit
+    # Computed once per position and pruning rule, the stepping does not change them
+    def stats(self) -> dict[Algorithm, Stats | None]:
+        if self._cached_stats is None or self._cached_stats[0] != self.prune_on_equal:
+            stats = {algorithm: self._run_stats(algorithm) for algorithm in Algorithm}
+            self._cached_stats = (self.prune_on_equal, stats)
+        return self._cached_stats[1]
+
+    # Run one algorithm to the end and count its work
+    def _run_stats(self, algorithm: Algorithm) -> Stats | None:
+        trace = Trace(self._new_search(algorithm))
+        trace.ensure_all()
+        if trace.error is not None:
+            return None
+        return count(trace.events)

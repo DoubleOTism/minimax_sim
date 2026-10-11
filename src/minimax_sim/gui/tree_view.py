@@ -7,12 +7,13 @@ the nodes and edges on a QGraphicsScene shown in a scrollable QGraphicsView.
 
 Nodes follow Rosen's notation, MAX nodes are squares and MIN nodes are circles.
 The Snapshot decides how each node looks (active, on the path, done, pruned)
-and which value it shows.
+and which value it shows. After the last step the optimal line from the root
+is drawn in green.
 Colours come from the system theme, so the tree works in light and dark mode.
 """
 
 from PySide6.QtCore import QPointF, QRectF, Qt
-from PySide6.QtGui import QBrush, QColor, QFont, QPainter, QPen
+from PySide6.QtGui import QBrush, QColor, QFont, QPainter, QPen, QResizeEvent, QWheelEvent
 from PySide6.QtWidgets import QGraphicsScene, QGraphicsView
 
 from minimax_sim.core.events import NodeId, ValueKind
@@ -31,11 +32,28 @@ Y_SPACING = 2.6
 # Line width of nodes and edges in pixels, the active node and its path get double
 LINE_WIDTH = 2
 
-# Opacity of the fill of nodes on the path, 0 to 255
+# Opacity of the fill of nodes on the path and on the optimal line, 0 to 255
 PATH_FILL_ALPHA = 90
+
+# Colour of the optimal line, readable on both light and dark background
+OPTIMAL_LINE_COLOR = "#3aa655"
 
 # Sign in front of a value that is only a bound
 BOUND_SIGNS = {ValueKind.EXACT: "", ValueKind.UPPER: "≤", ValueKind.LOWER: "≥"}
+
+# Limits of the zoom when the tree is fitted to the window, 1 means one scene pixel is one screen pixel
+MIN_ZOOM = 0.5
+MAX_ZOOM = 5.0
+
+# Limits of the zoom by hand, wider than for fitting
+MIN_HAND_ZOOM = 0.2
+MAX_HAND_ZOOM = 6.0
+
+# How much one step of zooming in or out changes the zoom
+ZOOM_STEP = 1.25
+
+# Free space kept around the active node when the view follows it, in node sizes
+FOLLOW_MARGIN = 2
 
 
 # Scrollable view of the tree, MAX nodes are squares and MIN nodes are circles
@@ -45,8 +63,18 @@ class TreeView(QGraphicsView):
         self.setScene(QGraphicsScene(self))
         self.setRenderHint(QPainter.RenderHint.Antialiasing)
 
+        # Dragging with the mouse moves the tree, zooming keeps the point under the mouse in place
+        self.setDragMode(QGraphicsView.DragMode.ScrollHandDrag)
+        self.setTransformationAnchor(QGraphicsView.ViewportAnchor.AnchorUnderMouse)
+
+        # Whether the zoom follows the window size, zooming by hand turns it off
+        self._follows_window = True
+
         # Whether nodes the search has not reached yet are left out
         self.hide_unvisited = False
+
+        # Whether the view scrolls so the active node stays visible, matters only when zoomed in
+        self.follow_active = True
 
     # Throw away what is drawn and draw the whole tree again
     def draw(self, layout: Layout, snapshot: Snapshot) -> None:
@@ -54,8 +82,15 @@ class TreeView(QGraphicsView):
         scene.clear()
         statuses = _statuses(layout, snapshot)
 
+        # Optimal line from the root, empty until the run is over
+        line = set(snapshot.principal_variation)
+
         # The scene always spans the whole tree, so it does not move when nodes are hidden
-        scene.setSceneRect(self._tree_rect(layout))
+        # A different tree gets fitted to the window again
+        tree_rect = self._tree_rect(layout)
+        if scene.sceneRect() != tree_rect:
+            scene.setSceneRect(tree_rect)
+            self.fit_to_window()
 
         # Edges first, so the nodes cover their ends, each edge looks like the child it leads to
         for layout_node in layout.nodes.values():
@@ -64,7 +99,7 @@ class TreeView(QGraphicsView):
                 if self._is_hidden(statuses[child]):
                     continue
                 end = self._position(layout, child)
-                scene.addLine(start.x(), start.y(), end.x(), end.y(), self._pen(statuses[child]))
+                scene.addLine(start.x(), start.y(), end.x(), end.y(), self._pen(statuses[child], child in line))
 
         for layout_node in layout.nodes.values():
             node = layout_node.node
@@ -73,14 +108,75 @@ class TreeView(QGraphicsView):
                 continue
             center = self._position(layout, node)
             rect = QRectF(center.x() - NODE_SIZE / 2, center.y() - NODE_SIZE / 2, NODE_SIZE, NODE_SIZE)
+            pen = self._pen(status, node in line)
+            brush = self._brush(status, node in line)
             if layout_node.is_max:
-                scene.addRect(rect, self._pen(status), self._brush(status))
+                scene.addRect(rect, pen, brush)
             else:
-                scene.addEllipse(rect, self._pen(status), self._brush(status))
+                scene.addEllipse(rect, pen, brush)
 
             node_state = snapshot.nodes.get(node)
             if node_state is not None and node_state.value is not None:
-                self._add_value(center, BOUND_SIGNS[node_state.kind] + _number(node_state.value), status)
+                self._add_value(center, BOUND_SIGNS[node_state.kind] + number_text(node_state.value), status)
+
+        # Scroll only as much as needed to keep the active node in sight
+        # After the last step there is no active node, the view goes to the end of the optimal line
+        target = snapshot.active
+        if target is None and snapshot.principal_variation:
+            target = snapshot.principal_variation[-1]
+        if self.follow_active and target is not None:
+            center = self._position(layout, target)
+            margin = NODE_SIZE * FOLLOW_MARGIN
+            self.ensureVisible(QRectF(center.x() - margin, center.y() - margin, 2 * margin, 2 * margin))
+
+    # Remove everything drawn, used when there is no tree to show
+    def clear_tree(self) -> None:
+        self.scene().clear()
+
+    # Zoom in on the tree
+    def zoom_in(self) -> None:
+        self._zoom_by(ZOOM_STEP)
+
+    # Zoom out on the tree
+    def zoom_out(self) -> None:
+        self._zoom_by(1 / ZOOM_STEP)
+
+    # Fit the tree to the window and keep it fitted when the window changes size
+    def fit_to_window(self) -> None:
+        self._follows_window = True
+        self._fit()
+
+    # Called by Qt whenever the view changes size, the tree is fitted again unless zoomed by hand
+    def resizeEvent(self, event: QResizeEvent) -> None:
+        super().resizeEvent(event)
+        if self._follows_window:
+            self._fit()
+
+    # Called by Qt for the mouse wheel, Ctrl + wheel zooms, the wheel alone scrolls as usual
+    def wheelEvent(self, event: QWheelEvent) -> None:
+        if event.modifiers() & Qt.KeyboardModifier.ControlModifier:
+            self._zoom_by(ZOOM_STEP if event.angleDelta().y() > 0 else 1 / ZOOM_STEP)
+        else:
+            super().wheelEvent(event)
+
+    # Change the zoom by factor, within MIN_HAND_ZOOM and MAX_HAND_ZOOM
+    def _zoom_by(self, factor: float) -> None:
+        current = self.transform().m11()
+        target = max(MIN_HAND_ZOOM, min(current * factor, MAX_HAND_ZOOM))
+        self._follows_window = False
+        self.scale(target / current, target / current)
+
+    # Zoom so the whole tree fills the view, within MIN_ZOOM and MAX_ZOOM
+    def _fit(self) -> None:
+        tree = self.sceneRect()
+        view = self.viewport().rect()
+        if tree.isEmpty() or view.isEmpty():
+            return
+        zoom = min(view.width() / tree.width(), view.height() / tree.height())
+        zoom = max(MIN_ZOOM, min(zoom, MAX_ZOOM))
+        self.resetTransform()
+        self.scale(zoom, zoom)
+        self.centerOn(tree.center())
 
     # Whether a node with this status is left out of the drawing
     def _is_hidden(self, status: Status) -> bool:
@@ -98,8 +194,10 @@ class TreeView(QGraphicsView):
         return QPointF(layout_node.x * X_SPACING * NODE_SIZE, layout_node.y * Y_SPACING * NODE_SIZE)
 
     # Outline of a node or an edge
-    def _pen(self, status: Status) -> QPen:
+    def _pen(self, status: Status, on_line: bool) -> QPen:
         palette = self.palette()
+        if on_line:
+            return QPen(QColor(OPTIMAL_LINE_COLOR), LINE_WIDTH * 2)
         if status in (Status.ACTIVE, Status.ON_PATH):
             return QPen(palette.highlight().color(), LINE_WIDTH * 2)
         if status is Status.DONE:
@@ -109,8 +207,12 @@ class TreeView(QGraphicsView):
         return QPen(palette.placeholderText().color(), LINE_WIDTH)
 
     # Fill of a node
-    def _brush(self, status: Status) -> QBrush:
+    def _brush(self, status: Status, on_line: bool) -> QBrush:
         palette = self.palette()
+        if on_line:
+            color = QColor(OPTIMAL_LINE_COLOR)
+            color.setAlpha(PATH_FILL_ALPHA)
+            return QBrush(color)
         if status is Status.ACTIVE:
             return palette.highlight()
         if status is Status.ON_PATH:
@@ -150,7 +252,7 @@ def _statuses(layout: Layout, snapshot: Snapshot) -> dict[NodeId, Status]:
 
 
 # Number without a useless ".0", 3.0 is shown as 3
-def _number(value: float) -> str:
+def number_text(value: float) -> str:
     if isinstance(value, float) and value.is_integer():
         return str(int(value))
     return str(value)
