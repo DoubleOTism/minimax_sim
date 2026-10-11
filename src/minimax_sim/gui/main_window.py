@@ -279,7 +279,7 @@ class MainWindow(QMainWindow):
         if layout is None:
             self.tree_view.clear_tree()
         else:
-            self.tree_view.draw(layout, snapshot)
+            self.tree_view.draw(layout, snapshot, self.controller.algorithm is Algorithm.ALPHABETA)
 
         can_back = self.controller.can_step_back
         can_forward = self.controller.can_step_forward

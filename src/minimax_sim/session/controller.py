@@ -85,7 +85,7 @@ class Controller:
 
     # Jump to step i, clamped to what exists
     def seek(self, i: int) -> None:
-        self._trace.ensure(i)
+        self._trace.ensure(i + 1)
         self.position = max(-1, min(i, len(self._trace) - 1))
 
     def step_forward(self) -> None:

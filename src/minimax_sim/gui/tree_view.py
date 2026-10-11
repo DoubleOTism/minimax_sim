@@ -12,6 +12,7 @@ is drawn in green.
 Colours come from the system theme, so the tree works in light and dark mode.
 """
 
+from math import isinf
 from PySide6.QtCore import QPointF, QRectF, Qt
 from PySide6.QtGui import QBrush, QColor, QFont, QPainter, QPen, QResizeEvent, QWheelEvent
 from PySide6.QtWidgets import QGraphicsScene, QGraphicsView
@@ -40,6 +41,9 @@ OPTIMAL_LINE_COLOR = "#3aa655"
 
 # Sign in front of a value that is only a bound
 BOUND_SIGNS = {ValueKind.EXACT: "", ValueKind.UPPER: "≤", ValueKind.LOWER: "≥"}
+
+# Size of the α and β text next to a node, in node sizes
+BOUNDS_TEXT_SIZE = 0.3
 
 # Limits of the zoom when the tree is fitted to the window, 1 means one scene pixel is one screen pixel
 MIN_ZOOM = 0.5
@@ -77,7 +81,8 @@ class TreeView(QGraphicsView):
         self.follow_active = True
 
     # Throw away what is drawn and draw the whole tree again
-    def draw(self, layout: Layout, snapshot: Snapshot) -> None:
+    # With show_bounds the active node and its ancestors get their α and β next to them
+    def draw(self, layout: Layout, snapshot: Snapshot, show_bounds: bool) -> None:
         scene = self.scene()
         scene.clear()
         statuses = _statuses(layout, snapshot)
@@ -118,6 +123,10 @@ class TreeView(QGraphicsView):
             node_state = snapshot.nodes.get(node)
             if node_state is not None and node_state.value is not None:
                 self._add_value(center, BOUND_SIGNS[node_state.kind] + number_text(node_state.value), status)
+
+            # Leaves only get a value, their bounds tell nothing
+            if show_bounds and status in (Status.ACTIVE, Status.ON_PATH) and layout_node.children:
+                self._add_bounds(center, node_state.alpha, node_state.beta)
 
         # Scroll only as much as needed to keep the active node in sight
         # After the last step there is no active node, the view goes to the end of the optimal line
@@ -232,6 +241,14 @@ class TreeView(QGraphicsView):
         size = item.boundingRect()
         item.setPos(center.x() - size.width() / 2, center.y() - size.height() / 2)
 
+    # α above β, to the upper right of a node
+    def _add_bounds(self, center: QPointF, alpha: float, beta: float) -> None:
+        font = QFont()
+        font.setPixelSize(int(NODE_SIZE * BOUNDS_TEXT_SIZE))
+        item = self.scene().addSimpleText(f"α = {number_text(alpha)}\nβ = {number_text(beta)}", font)
+        item.setBrush(self.palette().text())
+        item.setPos(center.x() + NODE_SIZE * 0.55, center.y() - NODE_SIZE * 0.65)
+
 
 # Status of every node in the layout, everything below a pruned node counts as pruned too
 def _statuses(layout: Layout, snapshot: Snapshot) -> dict[NodeId, Status]:
@@ -251,8 +268,10 @@ def _statuses(layout: Layout, snapshot: Snapshot) -> dict[NodeId, Status]:
     return statuses
 
 
-# Number without a useless ".0", 3.0 is shown as 3
+# Number without ".0", 3.0 is shown as 3, infinity as ∞
 def number_text(value: float) -> str:
+    if isinf(value):
+        return "∞" if value > 0 else "−∞"
     if isinstance(value, float) and value.is_integer():
         return str(int(value))
     return str(value)
