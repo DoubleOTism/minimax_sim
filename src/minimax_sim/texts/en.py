@@ -14,7 +14,7 @@ TREE_NO_HEURISTIC = "The abstract tree has no heuristic, so a depth limit is not
 
 
 # session
-TRACE_LIMIT = "Run stopped: the limit of {limit} events was exceeded. Lower the depth limit or pick a position further into the game."
+TRACE_LIMIT = "Run stopped, the limit of {limit} events was exceeded. Lower the depth limit or pick a position further into the game."
 TREE_TOO_BIG = "The tree is too big to draw (limit {limit} nodes). Lower the depth limit or pick a position further into the game."
 
 # gui
@@ -25,8 +25,23 @@ STEP_FORWARD = "Step forward"
 STEP_TO_END = "To end"
 STEP_COUNTER = "Step {current} of {total}"
 STEP_COUNTER_UNKNOWN_TOTAL = "Step {current}"
+RUN_FINISHED = "Run finished, the root value is {value}"
 ALGORITHM_MINIMAX = "Minimax"
 ALGORITHM_ALPHABETA = "Alpha-beta"
 PRUNE_GE = "Prune when α ≥ β"
 PRUNE_GT = "Prune when α > β"
 HIDE_UNVISITED = "Hide unvisited"
+ZOOM_FIT = "Fit to window"
+TREE_LABEL = "Tree definition:"
+TREE_LOAD = "Load (Ctrl+Enter)"
+PANEL_TOGGLE = "Hide or show the panel (F9)"
+PLAY = "Play"
+PAUSE = "Pause"
+SPEED = "Speed:"
+FOLLOW_ACTIVE = "Follow the active node"
+STATS_TITLE = "Algorithm comparison"
+STATS_NODES = "Visited nodes"
+STATS_LEAVES = "Evaluated leaves"
+STATS_PRUNED = "Pruned branches"
+STATS_STEPS = "Steps"
+STATS_UNKNOWN = "?"

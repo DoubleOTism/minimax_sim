@@ -14,7 +14,7 @@ TREE_NO_HEURISTIC = "Abstraktní strom nemá heuristiku, limit hloubky pro něj 
 
 
 # session
-TRACE_LIMIT = "Běh zastaven: překročen limit {limit} událostí. Snižte limit hloubky nebo zvolte rozehranou pozici."
+TRACE_LIMIT = "Prohledávání zastaveno, překročen limit {limit} událostí. Snižte limit hloubky nebo zvolte rozehranou pozici."
 TREE_TOO_BIG = "Strom je příliš velký na vykreslení (limit {limit} uzlů). Snižte limit hloubky nebo zvolte rozehranou pozici."
 
 # gui
@@ -25,8 +25,23 @@ STEP_FORWARD = "Krok vpřed"
 STEP_TO_END = "Na konec"
 STEP_COUNTER = "Krok {current} z {total}"
 STEP_COUNTER_UNKNOWN_TOTAL = "Krok {current}"
+RUN_FINISHED = "Prohledávání dokončeno, hodnota kořene je {value}"
 ALGORITHM_MINIMAX = "Minimax"
 ALGORITHM_ALPHABETA = "Alfa-beta"
 PRUNE_GE = "Prořezávat při α ≥ β"
 PRUNE_GT = "Prořezávat při α > β"
 HIDE_UNVISITED = "Skrýt nenavštívené"
+ZOOM_FIT = "Přizpůsobit oknu"
+TREE_LABEL = "Definice stromu:"
+TREE_LOAD = "Načíst (Ctrl+Enter)"
+PANEL_TOGGLE = "Skrýt nebo zobrazit panel (F9)"
+PLAY = "Přehrát"
+PAUSE = "Pauza"
+SPEED = "Rychlost:"
+FOLLOW_ACTIVE = "Sledovat aktivní uzel"
+STATS_TITLE = "Porovnání algoritmů"
+STATS_NODES = "Navštívené uzly"
+STATS_LEAVES = "Ohodnocené listy"
+STATS_PRUNED = "Prořezané větve"
+STATS_STEPS = "Kroky"
+STATS_UNKNOWN = "?"
