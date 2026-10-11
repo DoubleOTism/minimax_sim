@@ -53,6 +53,16 @@ def test_total_steps_known_only_at_the_end(ctl):
     assert ctl.total_steps == 47
 
 
+# The last step reached by single steps shows the optimal line right away,
+# without asking if it can_step_forward first
+def test_last_step_knows_it_is_last(ctl):
+    for _ in range(47):
+        ctl.step_forward()
+    assert ctl.position == 46
+    assert ctl.total_steps == 47
+    assert ctl.snapshot().principal_variation == ((), (0,), (0, 0), (0, 0, 0), (0, 0, 0, 0))
+
+
 # Changing the algorithm or the pruning convention starts the run again
 def test_settings_restart_the_run(ctl):
     ctl.to_end()
