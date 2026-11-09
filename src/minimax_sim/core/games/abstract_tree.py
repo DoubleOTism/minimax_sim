@@ -7,6 +7,8 @@ An inner node is a parenthesised list of children, a leaf is a number.
 
 The root is MAX and levels alternate.
 A move is the child index.
+
+The root is MAX unless chosen otherwise, levels alternate.
 """
 
 import math
@@ -108,12 +110,14 @@ class TreeState:
 # Rules of the abstract tree game
 class AbstractTree:
     # Accepts the text in Rosen's format, or an already parsed tree
-    def __init__(self, tree: Tree | str) -> None:
+    # With root_is_max False the tree is seen from the other player, MIN moves first
+    def __init__(self, tree: Tree | str, root_is_max: bool = True) -> None:
         self.tree = parse(tree) if isinstance(tree, str) else tree
+        self.root_is_max = root_is_max
 
     # The whole tree, MAX on the move
     def initial_state(self) -> TreeState:
-        return TreeState(self.tree, True)
+        return TreeState(self.tree, self.root_is_max)
 
     # Who moves is stored in the state, it flips on every move
     def is_max_turn(self, state: TreeState) -> bool:

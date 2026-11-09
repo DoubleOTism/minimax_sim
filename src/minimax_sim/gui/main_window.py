@@ -83,6 +83,13 @@ class MainWindow(QMainWindow):
         toolbar.setMovable(False)
         self.addToolBar(Qt.ToolBarArea.BottomToolBarArea, toolbar)
 
+        # Who moves first in the root, each item carries the value of root_is_max as data
+        self.root_box = QComboBox()
+        self.root_box.addItem(texts.ROOT_MAX, True)
+        self.root_box.addItem(texts.ROOT_MIN, False)
+        self.root_box.currentIndexChanged.connect(self._root_player_selected)
+        toolbar.addWidget(self.root_box)
+
         # Algorithm choice, each item carries its Algorithm as data
         self.algorithm_box = QComboBox()
         self.algorithm_box.addItem(texts.ALGORITHM_MINIMAX, Algorithm.MINIMAX)
@@ -185,10 +192,11 @@ class MainWindow(QMainWindow):
     # Parse the tree text and load it, or keep the old tree and show where the text is wrong
     def _load_tree(self, text: str) -> None:
         try:
-            game = AbstractTree(text)
+            game = AbstractTree(text, root_is_max=self.root_box.currentData())
         except ParseError as error:
             self.side_panel.show_message(str(error), error.pos)
             return
+        self._tree_text = text
         self._stop_playing()
         self.controller.load(game, game.initial_state())
         self.side_panel.show_message(self.controller.layout_error or "")
@@ -239,6 +247,11 @@ class MainWindow(QMainWindow):
     # Milliseconds between two steps of the playback
     def _step_interval(self) -> int:
         return 1000 // self.speed_slider.value()
+
+    # Load the current tree again with the other player in the root
+    # The text in the panel may be edited and not loaded yet, so the last loaded tree is used
+    def _root_player_selected(self) -> None:
+        self._load_tree(self._tree_text)
 
     # Start a new run with the algorithm picked in the drop-down
     def _algorithm_selected(self) -> None:

@@ -3,7 +3,9 @@ Tests for minimax and alpha-beta.
 """
 
 from minimax_sim.core.events import Exit, Prune, ValueKind
+from minimax_sim.core.games.abstract_tree import AbstractTree
 from minimax_sim.core.search import alphabeta, minimax
+from tests.conftest import ROSEN
 from tests.helpers import leaves, principal_variation, prunes, run, visited
 
 
@@ -61,3 +63,17 @@ def test_prune_only_when_moves_remain(rosen):
     pruned = [e for e in events if isinstance(e, Prune)]
     assert all(p.node != (1, 0, 1) for p in pruned)
     assert all(p.skipped for p in pruned)
+
+# Rosen's tree seen from the other player, MIN moves first
+# Value 14 from both algorithms, alpha-beta prunes only the 0 under (25 0)
+def test_rosen_min_root():
+    game = AbstractTree(ROSEN, root_is_max=False)
+    events, result = run(minimax(game, game.initial_state()))
+    assert result.value == 14
+    assert principal_variation(events) == (1, 1, 0, 1)
+
+    events, result = run(alphabeta(game, game.initial_state()))
+    assert result.value == 14
+    assert principal_variation(events) == (1, 1, 0, 1)
+    assert leaves(events) == [3, 17, 2, 12, 15, 25, 2, 5, 3, 2, 14]
+    assert [p.node for p in events if isinstance(p, Prune)] == [(0, 1, 1)]

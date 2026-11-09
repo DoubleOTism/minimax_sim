@@ -81,6 +81,14 @@ def test_game_interface():
     assert game.move_label(1) == "1"
 
 
+# Seen from the other player, MIN moves first and the levels still alternate
+def test_root_can_be_min():
+    game = AbstractTree("((1 2) (3))", root_is_max=False)
+    root = game.initial_state()
+    assert not game.is_max_turn(root)
+    assert game.is_max_turn(game.apply(root, 0))
+
+
 # The abstract tree has no heuristic, so a depth limit must fail loudly
 def test_evaluate_is_unsupported():
     game = AbstractTree("((1 2) (3))")

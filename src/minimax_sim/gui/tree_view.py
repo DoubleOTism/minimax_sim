@@ -13,6 +13,7 @@ Colours come from the system theme, so the tree works in light and dark mode.
 """
 
 from math import isinf
+
 from PySide6.QtCore import QPointF, QRectF, Qt
 from PySide6.QtGui import QBrush, QColor, QFont, QPainter, QPen, QResizeEvent, QWheelEvent
 from PySide6.QtWidgets import QGraphicsScene, QGraphicsView
