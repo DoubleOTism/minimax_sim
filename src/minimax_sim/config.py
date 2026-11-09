@@ -71,3 +71,7 @@ WINDOW_SCALE = _fraction("MINIMAX_WINDOW_SCALE", 0.8)
 # Light uses the default Qt Fusion theme, dark uses colour-edited Fusion default.
 # Dark can be customized in /gui/theme.py
 THEME = _choice("MINIMAX_THEME", "system", ("system", "light", "dark"))
+
+# JSON file with extra tree presets, they are added after the built-in ones
+# None, or an empty value, means only the built-in presets
+PRESETS_FILE = os.environ.get("MINIMAX_PRESETS") or None

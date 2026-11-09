@@ -55,7 +55,8 @@ class MainWindow(QMainWindow):
 
         # Tree in the middle, side panel on the right, between them a thin button that hides the panel
         self.tree_view = TreeView()
-        self.side_panel = SidePanel(presets.ROSEN_TREE)
+        preset_list = presets.load(config.PRESETS_FILE)
+        self.side_panel = SidePanel(preset_list)
         self.side_panel.load_requested.connect(self._load_tree)
         self.panel_button = QToolButton()
         self.panel_button.setArrowType(Qt.ArrowType.RightArrow)
@@ -155,7 +156,7 @@ class MainWindow(QMainWindow):
         self.result_label = QLabel()
         self.statusBar().addWidget(self.result_label)
 
-        self._load_tree(presets.ROSEN_TREE)
+        self._load_tree(preset_list[0][1])
 
     # Show the window the way config.WINDOW_MODE says
     def show_by_config(self) -> None:
@@ -199,6 +200,7 @@ class MainWindow(QMainWindow):
         self._tree_text = text
         self._stop_playing()
         self.controller.load(game, game.initial_state())
+        self.side_panel.show_loaded(text)
         self.side_panel.show_message(self.controller.layout_error or "")
         self._refresh()
 

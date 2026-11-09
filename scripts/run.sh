@@ -29,6 +29,9 @@ cd "$(dirname "$0")/.."
 # Colour themes: system, light, or dark
 # export MINIMAX_THEME=dark
 
+# Extra tree presets, a JSON file with name and tree pairs, the path is relative to the project
+export MINIMAX_PRESETS=presets.example.json
+
 # System Python, the project is not installed, so Python looks for it in src/
 if [ "${1:-}" = "--system" ]; then
     shift

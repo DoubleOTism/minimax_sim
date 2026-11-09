@@ -35,6 +35,18 @@ Vlastní strom se zadává v panelu vpravo v Rosenově zápisu a načte se přes
 ( (((3 17) (2 12)) ((15) (25 0))) (((2 5) (3)) ((2 14))) )
 ```
 
+## Vlastní předvolby
+
+Vlastní stromy se dají přidat do JSON souboru, vzor je v `presets.example.json`:
+
+```json
+{
+  "Název v nabídce": "((3 12 8) (2 4 6) (14 5 2))"
+}
+```
+
+Zápis stromu je stejný jako v panelu. Soubor se zapne v `scripts/run.sh` přes `MINIMAX_PRESETS`.
+
 ## Testy
 
 Se systémovým Pythonem:

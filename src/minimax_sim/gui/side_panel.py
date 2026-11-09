@@ -8,6 +8,7 @@ It only shows things and asks for actions, the main window decides what happens.
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtGui import QFont, QKeySequence, QShortcut
 from PySide6.QtWidgets import (
+    QComboBox,
     QFrame,
     QGridLayout,
     QLabel,
@@ -43,7 +44,8 @@ class SidePanel(QScrollArea):
     # Sent with the tree text when the button or Ctrl+Enter asks to load it
     load_requested = Signal(str)
 
-    def __init__(self, tree_text: str) -> None:
+    # presets are pairs of name and tree text, the first one fills the text field
+    def __init__(self, presets: list[tuple[str, str]]) -> None:
         super().__init__()
         self.setMinimumWidth(PANEL_MIN_WIDTH)
         self.setMaximumWidth(PANEL_MAX_WIDTH)
@@ -56,10 +58,20 @@ class SidePanel(QScrollArea):
         column.setContentsMargins(PANEL_PADDING, PANEL_PADDING, PANEL_PADDING, PANEL_PADDING)
         self.setWidget(content)
 
+        # Prepared trees, choosing one puts it into the text field and loads it
+        # A loaded tree that matches no preset shows as the custom tree
+        column.addWidget(QLabel(texts.PRESET_LABEL))
+        self.preset_box = QComboBox()
+        self.preset_box.setPlaceholderText(texts.PRESET_CUSTOM)
+        for name, tree in presets:
+            self.preset_box.addItem(name, tree)
+        self.preset_box.activated.connect(self._preset_chosen)
+        column.addWidget(self.preset_box)
+
         # Tree text, long lines scroll sideways instead of wrapping
         # Enter makes a new line, so loading has its own shortcut
         column.addWidget(QLabel(texts.TREE_LABEL))
-        self.tree_edit = QPlainTextEdit(tree_text)
+        self.tree_edit = QPlainTextEdit(presets[0][1])
         self.tree_edit.setLineWrapMode(QPlainTextEdit.LineWrapMode.NoWrap)
         column.addWidget(self.tree_edit, 1)
         for keys in ("Ctrl+Return", "Ctrl+Enter"):
@@ -113,6 +125,16 @@ class SidePanel(QScrollArea):
                 label.setText(str(value))
                 _set_bold(label, bold)
             _set_bold(self.algorithm_labels[algorithm], bold)
+
+
+    # Select the preset the loaded tree came from, or none for a custom tree
+    def show_loaded(self, text: str) -> None:
+        self.preset_box.setCurrentIndex(self.preset_box.findData(text))
+
+    # Put the chosen preset into the text field and ask to load it
+    def _preset_chosen(self) -> None:
+        self.tree_edit.setPlainText(self.preset_box.currentData())
+        self._request_load()
 
     def _request_load(self) -> None:
         self.load_requested.emit(self.tree_edit.toPlainText())
