@@ -1,5 +1,7 @@
 """
 Main application window.
+
+Each tab holds one simulator page, the toolbar and the status bar belong to the page that is shown.
 """
 
 from collections.abc import Callable
@@ -9,29 +11,21 @@ from PySide6.QtGui import QAction, QKeySequence
 from PySide6.QtWidgets import (
     QCheckBox,
     QComboBox,
-    QHBoxLayout,
     QLabel,
     QMainWindow,
     QSizePolicy,
     QSlider,
+    QTabWidget,
     QToolBar,
-    QToolButton,
     QWidget,
 )
 
 from minimax_sim import config, presets, texts
-from minimax_sim.core.games.abstract_tree import AbstractTree, ParseError
-from minimax_sim.gui.side_panel import SidePanel
-from minimax_sim.gui.tree_view import TreeView, number_text
-from minimax_sim.session.controller import Algorithm, Controller
+from minimax_sim.gui.simulator_page import SimulatorPage
+from minimax_sim.gui.tree_source import TreeSource
+from minimax_sim.gui.tree_view import number_text
+from minimax_sim.session.controller import Algorithm
 from minimax_sim.session.snapshot import Status
-
-# How the width is split between the tree and the side panel, 3 : 1
-TREE_SHARE = 3
-PANEL_SHARE = 1
-
-# Width of the strip with the arrow that hides the panel, in pixels
-ARROW_WIDTH = 14
 
 # Playback speed in steps per second, the slider goes from 1 to MAX_SPEED
 DEFAULT_SPEED = 3
@@ -41,7 +35,7 @@ MAX_SPEED = 10
 SPEED_SLIDER_WIDTH = 120
 
 
-# The top-level window, the simulator(s) will live inside of it
+# The top-level window with the simulator tabs
 class MainWindow(QMainWindow):
     def __init__(self) -> None:
         super().__init__()
@@ -51,32 +45,16 @@ class MainWindow(QMainWindow):
         available = self.screen().availableGeometry()
         self.resize(int(available.width() * config.WINDOW_SCALE), int(available.height() * config.WINDOW_SCALE))
 
-        self.controller = Controller()
-
-        # Tree in the middle, side panel on the right, between them a thin button that hides the panel
-        self.tree_view = TreeView()
-        preset_list = presets.load(config.PRESETS_FILE)
-        self.side_panel = SidePanel(preset_list)
-        self.side_panel.load_requested.connect(self._load_tree)
-        self.panel_button = QToolButton()
-        self.panel_button.setArrowType(Qt.ArrowType.RightArrow)
-        self.panel_button.setAutoRaise(True)
-        self.panel_button.setToolTip(texts.PANEL_TOGGLE)
-        self.panel_button.setFixedWidth(ARROW_WIDTH)
-        self.panel_button.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Expanding)
-        self.panel_button.clicked.connect(self._toggle_side_panel)
-
-        central = QWidget()
-        row = QHBoxLayout(central)
-        row.setContentsMargins(0, 0, 0, 0)
-        row.setSpacing(0)
-        row.addWidget(self.tree_view, TREE_SHARE)
-        row.addWidget(self.panel_button)
-        row.addWidget(self.side_panel, PANEL_SHARE)
-        self.setCentralWidget(central)
+        # One simulator page per tab, the tab bar hides itself while there is only one
+        self.tabs = QTabWidget()
+        self.tabs.setTabBarAutoHide(True)
+        self.setCentralWidget(self.tabs)
+        tree_page = SimulatorPage(TreeSource(presets.load(config.PRESETS_FILE)))
+        self._add_page(tree_page, texts.TAB_TREE)
+        self.tabs.currentChanged.connect(self._page_changed)
 
         # F9 hides and shows the panel from anywhere in the window
-        self._add_shortcut(Qt.Key.Key_F9, self._toggle_side_panel)
+        self._add_shortcut(Qt.Key.Key_F9, lambda: self._page().toggle_side_panel())
 
         # One toolbar at the bottom, split into three groups:
         # Algorithm settings on the left, stepping in the middle, view options on the right
@@ -84,18 +62,10 @@ class MainWindow(QMainWindow):
         toolbar.setMovable(False)
         self.addToolBar(Qt.ToolBarArea.BottomToolBarArea, toolbar)
 
-        # Who moves first in the root, each item carries the value of root_is_max as data
-        self.root_box = QComboBox()
-        self.root_box.addItem(texts.ROOT_MAX, True)
-        self.root_box.addItem(texts.ROOT_MIN, False)
-        self.root_box.currentIndexChanged.connect(self._root_player_selected)
-        toolbar.addWidget(self.root_box)
-
         # Algorithm choice, each item carries its Algorithm as data
         self.algorithm_box = QComboBox()
         self.algorithm_box.addItem(texts.ALGORITHM_MINIMAX, Algorithm.MINIMAX)
         self.algorithm_box.addItem(texts.ALGORITHM_ALPHABETA, Algorithm.ALPHABETA)
-        self.algorithm_box.setCurrentIndex(self.algorithm_box.findData(self.controller.algorithm))
         self.algorithm_box.currentIndexChanged.connect(self._algorithm_selected)
         toolbar.addWidget(self.algorithm_box)
 
@@ -103,7 +73,6 @@ class MainWindow(QMainWindow):
         self.prune_box = QComboBox()
         self.prune_box.addItem(texts.PRUNE_GE, True)
         self.prune_box.addItem(texts.PRUNE_GT, False)
-        self.prune_box.setCurrentIndex(self.prune_box.findData(self.controller.prune_on_equal))
         self.prune_box.currentIndexChanged.connect(self._prune_rule_selected)
         toolbar.addWidget(self.prune_box)
 
@@ -135,18 +104,18 @@ class MainWindow(QMainWindow):
         # Zoom of the tree, only fitting has a button
         # Zooming in and out is Ctrl + mouse wheel or Ctrl + plus and Ctrl + minus
         self._add_spacer(toolbar)
-        self._add_action(toolbar, texts.ZOOM_FIT, QKeySequence("Ctrl+0"), self.tree_view.fit_to_window)
-        self._add_shortcut(QKeySequence(QKeySequence.StandardKey.ZoomIn), self.tree_view.zoom_in)
-        self._add_shortcut(QKeySequence(QKeySequence.StandardKey.ZoomOut), self.tree_view.zoom_out)
+        self._add_action(toolbar, texts.ZOOM_FIT, QKeySequence("Ctrl+0"), lambda: self._page().tree_view.fit_to_window())
+        self._add_shortcut(QKeySequence(QKeySequence.StandardKey.ZoomIn), lambda: self._page().tree_view.zoom_in())
+        self._add_shortcut(QKeySequence(QKeySequence.StandardKey.ZoomOut), lambda: self._page().tree_view.zoom_out())
 
-        # Show only the nodes the search has reached so far
+        # Show only the nodes the search has reached so far, on every page
         self.hide_unvisited_box = QCheckBox(texts.HIDE_UNVISITED)
         self.hide_unvisited_box.toggled.connect(self._hide_unvisited_toggled)
         toolbar.addWidget(self.hide_unvisited_box)
 
-        # Keep the active node in sight when the tree is zoomed in
+        # Keep the active node in sight when the tree is zoomed in, on every page
         self.follow_box = QCheckBox(texts.FOLLOW_ACTIVE)
-        self.follow_box.setChecked(self.tree_view.follow_active)
+        self.follow_box.setChecked(tree_page.tree_view.follow_active)
         self.follow_box.toggled.connect(self._follow_toggled)
         toolbar.addWidget(self.follow_box)
 
@@ -156,7 +125,7 @@ class MainWindow(QMainWindow):
         self.result_label = QLabel()
         self.statusBar().addWidget(self.result_label)
 
-        self._load_tree(preset_list[0][1])
+        self._page_changed()
 
     # Show the window the way config.WINDOW_MODE says
     def show_by_config(self) -> None:
@@ -166,6 +135,19 @@ class MainWindow(QMainWindow):
             self.showMaximized()
         else:
             self.show()
+
+    # Put a simulator page into a new tab
+    def _add_page(self, page: SimulatorPage, title: str) -> None:
+        page.loaded.connect(self._page_loaded)
+        self.tabs.addTab(page, title)
+
+    # The page in the tab that is shown
+    def _page(self) -> SimulatorPage:
+        return self.tabs.currentWidget()
+
+    # Every page, for the view options that apply to all of them
+    def _pages(self) -> list[SimulatorPage]:
+        return [self.tabs.widget(i) for i in range(self.tabs.count())]
 
     # Button in the toolbar that calls slot when clicked or when the shortcut is pressed
     def _add_action(
@@ -190,41 +172,40 @@ class MainWindow(QMainWindow):
         spacer.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
         toolbar.addWidget(spacer)
 
-    # Parse the tree text and load it, or keep the old tree and show where the text is wrong
-    def _load_tree(self, text: str) -> None:
-        try:
-            game = AbstractTree(text, root_is_max=self.root_box.currentData())
-        except ParseError as error:
-            self.side_panel.show_message(str(error), error.pos)
-            return
-        self._tree_text = text
+    # A page loaded a new game, a running playback would continue on a different run
+    def _page_loaded(self) -> None:
         self._stop_playing()
-        self.controller.load(game, game.initial_state())
-        self.side_panel.show_loaded(text)
-        self.side_panel.show_message(self.controller.layout_error or "")
         self._refresh()
 
-    # Hide or show the side panel, the arrow points to where the panel goes on the next click
-    def _toggle_side_panel(self) -> None:
-        show = self.side_panel.isHidden()
-        self.side_panel.setVisible(show)
-        self.panel_button.setArrowType(Qt.ArrowType.RightArrow if show else Qt.ArrowType.LeftArrow)
+    # Another tab was opened, the drop-downs show the settings of its page
+    # The signals are blocked, so setting the drop-downs does not restart the run
+    def _page_changed(self) -> None:
+        self._stop_playing()
+        controller = self._page().controller
+        for box, value in ((self.algorithm_box, controller.algorithm), (self.prune_box, controller.prune_on_equal)):
+            box.blockSignals(True)
+            box.setCurrentIndex(box.findData(value))
+            box.blockSignals(False)
+        self._refresh()
 
-    # Redraw the tree with or without the unvisited nodes
+    # Redraw the trees with or without the unvisited nodes
     def _hide_unvisited_toggled(self, hide: bool) -> None:
-        self.tree_view.hide_unvisited = hide
+        for page in self._pages():
+            page.tree_view.hide_unvisited = hide
         self._refresh()
 
-        # Turn following the active node on or off
+    # Turn following the active node on or off
     def _follow_toggled(self, follow: bool) -> None:
-        self.tree_view.follow_active = follow
+        for page in self._pages():
+            page.tree_view.follow_active = follow
         self._refresh()
 
     # Start or stop the playback, playing again after the last step starts from the beginning
     def _play_toggled(self, playing: bool) -> None:
         if playing:
-            if not self.controller.can_step_forward:
-                self.controller.to_start()
+            controller = self._page().controller
+            if not controller.can_step_forward:
+                controller.to_start()
                 self._refresh()
             self.play_timer.start(self._step_interval())
             self.play_action.setText(texts.PAUSE)
@@ -234,9 +215,10 @@ class MainWindow(QMainWindow):
 
     # One step of the playback, it stops by itself after the last step
     def _play_step(self) -> None:
-        self.controller.step_forward()
+        controller = self._page().controller
+        controller.step_forward()
         self._refresh()
-        if not self.controller.can_step_forward:
+        if not controller.can_step_forward:
             self._stop_playing()
 
     # Any manual change stops the playback, so it does not run away from the lecturer
@@ -250,71 +232,62 @@ class MainWindow(QMainWindow):
     def _step_interval(self) -> int:
         return 1000 // self.speed_slider.value()
 
-    # Load the current tree again with the other player in the root
-    # The text in the panel may be edited and not loaded yet, so the last loaded tree is used
-    def _root_player_selected(self) -> None:
-        self._load_tree(self._tree_text)
-
     # Start a new run with the algorithm picked in the drop-down
     def _algorithm_selected(self) -> None:
         self._stop_playing()
-        self.controller.set_algorithm(self.algorithm_box.currentData())
+        self._page().controller.set_algorithm(self.algorithm_box.currentData())
         self._refresh()
 
     # Start a new run with the pruning rule picked in the drop-down
     def _prune_rule_selected(self) -> None:
         self._stop_playing()
-        self.controller.set_prune_on_equal(self.prune_box.currentData())
+        self._page().controller.set_prune_on_equal(self.prune_box.currentData())
         self._refresh()
 
     def _to_start(self) -> None:
         self._stop_playing()
-        self.controller.to_start()
+        self._page().controller.to_start()
         self._refresh()
 
     def _step_back(self) -> None:
         self._stop_playing()
-        self.controller.step_back()
+        self._page().controller.step_back()
         self._refresh()
 
     def _step_forward(self) -> None:
         self._stop_playing()
-        self.controller.step_forward()
+        self._page().controller.step_forward()
         self._refresh()
 
     def _to_end(self) -> None:
         self._stop_playing()
-        self.controller.to_end()
+        self._page().controller.to_end()
         self._refresh()
 
-    # Bring the tree, buttons and the step number in line with the controller
+    # Bring the page, buttons and the step number in line with the controller of the shown page
     def _refresh(self) -> None:
-        snapshot = self.controller.snapshot()
-        layout = self.controller.layout()
-        if layout is None:
-            self.tree_view.clear_tree()
-        else:
-            self.tree_view.draw(layout, snapshot, self.controller.algorithm is Algorithm.ALPHABETA)
+        page = self._page()
+        page.refresh()
+        controller = page.controller
 
-        can_back = self.controller.can_step_back
-        can_forward = self.controller.can_step_forward
+        can_back = controller.can_step_back
+        can_forward = controller.can_step_forward
         self.to_start_action.setEnabled(can_back)
         self.step_back_action.setEnabled(can_back)
         self.step_forward_action.setEnabled(can_forward)
         self.to_end_action.setEnabled(can_forward)
-        self.prune_box.setEnabled(self.controller.algorithm is Algorithm.ALPHABETA)
-        self.side_panel.show_stats(self.controller.stats(), self.controller.algorithm)
+        self.prune_box.setEnabled(controller.algorithm is Algorithm.ALPHABETA)
 
         # Position -1 is before the first event, shown as step 0
-        current = self.controller.position + 1
-        total = self.controller.total_steps
+        current = controller.position + 1
+        total = controller.total_steps
         if total is None:
             self.step_label.setText(texts.STEP_COUNTER_UNKNOWN_TOTAL.format(current=current))
         else:
             self.step_label.setText(texts.STEP_COUNTER.format(current=current, total=total))
 
         # The root is done only after the last step of a finished run
-        root = snapshot.nodes.get(())
+        root = controller.snapshot().nodes.get(())
         if root is not None and root.status is Status.DONE:
             self.result_label.setText(texts.RUN_FINISHED.format(value=number_text(root.value)))
         else:

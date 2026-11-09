@@ -1,23 +1,13 @@
 """
 Side panel next to the tree.
 
-For now it holds the text of the tree, the counters and the step explanation will come here too.
-It only shows things and asks for actions, the main window decides what happens.
+At the top the input of the game (the tree text or the board), below it the counters.
+The step explanation will come here too.
 """
 
-from PySide6.QtCore import Qt, Signal
-from PySide6.QtGui import QFont, QKeySequence, QShortcut
-from PySide6.QtWidgets import (
-    QComboBox,
-    QFrame,
-    QGridLayout,
-    QLabel,
-    QPlainTextEdit,
-    QPushButton,
-    QScrollArea,
-    QVBoxLayout,
-    QWidget,
-)
+from PySide6.QtCore import Qt
+from PySide6.QtGui import QFont
+from PySide6.QtWidgets import QFrame, QGridLayout, QLabel, QScrollArea, QVBoxLayout, QWidget
 
 from minimax_sim import texts
 from minimax_sim.session.controller import Algorithm
@@ -39,13 +29,10 @@ PANEL_MIN_WIDTH = 220
 PANEL_MAX_WIDTH = 480
 
 
-# Column of widgets on the right side of the window, scrolls when it does not fit
+# Column of widgets on the right side of the page, scrolls when it does not fit
 class SidePanel(QScrollArea):
-    # Sent with the tree text when the button or Ctrl+Enter asks to load it
-    load_requested = Signal(str)
-
-    # presets are pairs of name and tree text, the first one fills the text field
-    def __init__(self, presets: list[tuple[str, str]]) -> None:
+    # source is the input of the game, it takes all the free height
+    def __init__(self, source: QWidget) -> None:
         super().__init__()
         self.setMinimumWidth(PANEL_MIN_WIDTH)
         self.setMaximumWidth(PANEL_MAX_WIDTH)
@@ -58,35 +45,7 @@ class SidePanel(QScrollArea):
         column.setContentsMargins(PANEL_PADDING, PANEL_PADDING, PANEL_PADDING, PANEL_PADDING)
         self.setWidget(content)
 
-        # Prepared trees, choosing one puts it into the text field and loads it
-        # A loaded tree that matches no preset shows as the custom tree
-        column.addWidget(QLabel(texts.PRESET_LABEL))
-        self.preset_box = QComboBox()
-        self.preset_box.setPlaceholderText(texts.PRESET_CUSTOM)
-        for name, tree in presets:
-            self.preset_box.addItem(name, tree)
-        self.preset_box.activated.connect(self._preset_chosen)
-        column.addWidget(self.preset_box)
-
-        # Tree text, long lines scroll sideways instead of wrapping
-        # Enter makes a new line, so loading has its own shortcut
-        column.addWidget(QLabel(texts.TREE_LABEL))
-        self.tree_edit = QPlainTextEdit(presets[0][1])
-        self.tree_edit.setLineWrapMode(QPlainTextEdit.LineWrapMode.NoWrap)
-        column.addWidget(self.tree_edit, 1)
-        for keys in ("Ctrl+Return", "Ctrl+Enter"):
-            shortcut = QShortcut(QKeySequence(keys), self.tree_edit)
-            shortcut.setContext(Qt.ShortcutContext.WidgetShortcut)
-            shortcut.activated.connect(self._request_load)
-
-        load_button = QPushButton(texts.TREE_LOAD)
-        load_button.clicked.connect(self._request_load)
-        column.addWidget(load_button)
-
-        # Problems with the tree, empty when all is fine
-        self.message_label = QLabel()
-        self.message_label.setWordWrap(True)
-        column.addWidget(self.message_label)
+        column.addWidget(source, 1)
 
         # Counters of both algorithms side by side, one row per Stats field
         column.addWidget(QLabel(texts.STATS_TITLE))
@@ -106,15 +65,6 @@ class SidePanel(QScrollArea):
                 table.addWidget(label, row, col, Qt.AlignmentFlag.AlignRight)
                 self.stats_labels[(algorithm, field)] = label
 
-    # Show a problem with the tree, with pos the cursor jumps to where the text is wrong
-    def show_message(self, message: str, pos: int | None = None) -> None:
-        self.message_label.setText(message)
-        if pos is not None:
-            cursor = self.tree_edit.textCursor()
-            cursor.setPosition(pos)
-            self.tree_edit.setTextCursor(cursor)
-            self.tree_edit.setFocus()
-
     # Fill the counter table, the column of the algorithm being stepped through is bold
     def show_stats(self, stats: dict[Algorithm, Stats | None], current: Algorithm) -> None:
         for algorithm, algorithm_stats in stats.items():
@@ -125,19 +75,6 @@ class SidePanel(QScrollArea):
                 label.setText(str(value))
                 _set_bold(label, bold)
             _set_bold(self.algorithm_labels[algorithm], bold)
-
-
-    # Select the preset the loaded tree came from, or none for a custom tree
-    def show_loaded(self, text: str) -> None:
-        self.preset_box.setCurrentIndex(self.preset_box.findData(text))
-
-    # Put the chosen preset into the text field and ask to load it
-    def _preset_chosen(self) -> None:
-        self.tree_edit.setPlainText(self.preset_box.currentData())
-        self._request_load()
-
-    def _request_load(self) -> None:
-        self.load_requested.emit(self.tree_edit.toPlainText())
 
 
 # Make the text of a label bold or normal
