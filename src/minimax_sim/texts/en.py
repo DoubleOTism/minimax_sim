@@ -13,9 +13,17 @@ PARSE_NOT_FINITE = "Value {token!r} at position {pos} is not a finite number."
 TREE_NO_HEURISTIC = "The abstract tree has no heuristic, so a depth limit is not supported for it."
 
 
+# core: tic-tac-toe
+TTT_BAD_BOARD = "A tic-tac-toe board must have 9 cells, each with X, O or empty."
+TTT_BAD_COUNTS = "The board has {x} X and {o} O. X starts and the players take turns, so X has one more or the same."
+TTT_TWO_WINNERS = "Both players have won on this board, such a position cannot happen in a game."
+TTT_MOVE_AFTER_WIN = "A move was made after the win, but the game ends with a win."
+
+
 # session
 TRACE_LIMIT = "Run stopped, the limit of {limit} events was exceeded. Lower the depth limit or pick a position further into the game."
 TREE_TOO_BIG = "The tree is too big to draw (limit {limit} nodes). Lower the depth limit or pick a position further into the game."
+
 
 # gui
 APP_TITLE = "Minimax and alpha-beta pruning simulator"

@@ -5,10 +5,8 @@ Abstract game tree given as text in Rosen's format, something like:
 
 An inner node is a parenthesised list of children, a leaf is a number.
 
-The root is MAX and levels alternate.
-A move is the child index.
-
 The root is MAX unless chosen otherwise, levels alternate.
+A move is the child index.
 """
 
 import math
@@ -115,7 +113,7 @@ class AbstractTree:
         self.tree = parse(tree) if isinstance(tree, str) else tree
         self.root_is_max = root_is_max
 
-    # The whole tree, MAX on the move
+    # The whole tree, the player chosen for the root on the move
     def initial_state(self) -> TreeState:
         return TreeState(self.tree, self.root_is_max)
 

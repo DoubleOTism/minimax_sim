@@ -38,3 +38,9 @@ def principal_variation(events):
     while path in exits and exits[path].best_move is not None:
         path = path + (exits[path].best_move,)
     return path
+
+
+# Tic-tac-toe board from 9 characters row by row, "." is an empty cell, spaces are ignored
+#   board("XX. OO. ...")
+def board(text: str) -> tuple[str, ...]:
+    return tuple("" if char == "." else char for char in text.replace(" ", ""))

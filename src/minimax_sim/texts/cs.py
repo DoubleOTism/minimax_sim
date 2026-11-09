@@ -13,9 +13,17 @@ PARSE_NOT_FINITE = "Hodnota {token!r} na pozici {pos} není konečné číslo."
 TREE_NO_HEURISTIC = "Abstraktní strom nemá heuristiku, limit hloubky pro něj není podporovaný."
 
 
+# core: tic-tac-toe
+TTT_BAD_BOARD = "Deska piškvorek musí mít 9 polí, každé s X, O, nebo prázdné."
+TTT_BAD_COUNTS = "Na desce je X {x}krát a O {o}krát. Začíná X a hráči se střídají, takže X má o jedno víc, nebo stejně."
+TTT_TWO_WINNERS = "Na desce vyhráli oba hráči, taková pozice ve hře nastat nemůže."
+TTT_MOVE_AFTER_WIN = "Na desce se táhlo i po výhře, hra přitom výhrou končí."
+
+
 # session
 TRACE_LIMIT = "Prohledávání zastaveno, překročen limit {limit} událostí. Snižte limit hloubky nebo zvolte rozehranou pozici."
 TREE_TOO_BIG = "Strom je příliš velký na vykreslení (limit {limit} uzlů). Snižte limit hloubky nebo zvolte rozehranou pozici."
+
 
 # gui
 APP_TITLE = "Simulátor minimaxu a alfa-beta prořezávání"
