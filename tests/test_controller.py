@@ -6,7 +6,9 @@ import pytest
 
 from minimax_sim import config, texts
 from minimax_sim.core.games.abstract_tree import AbstractTree
+from minimax_sim.core.games.tictactoe import TicTacToe
 from minimax_sim.session.controller import Algorithm, Controller
+from tests.helpers import board
 
 
 # Controller with Rosen's tree loaded, stepping through alpha-beta
@@ -85,3 +87,20 @@ def test_tree_too_big():
     controller.load(wide, wide.initial_state())
     assert controller.layout() is None
     assert controller.layout_error == texts.TREE_TOO_BIG.format(limit=config.MAX_DRAWN_NODES)
+
+
+# State and last move of a node are played from the loaded position
+def test_node_state_and_move():
+    game = TicTacToe(board("X.. ... ..."))
+    controller = Controller()
+    controller.load(game, game.initial_state(), 2)
+    assert controller.node_state(()) == board("X.. ... ...")
+    assert controller.node_move(()) is None
+
+    # Moves of the root are the empty cells 1 to 8, index 3 is cell 4 in the middle
+    assert controller.node_state((3,)) == board("X.. .O. ...")
+    assert controller.node_move((3,)) == 4
+
+    # Then the empty cells are 1, 2, 3, 5, 6, 7, 8, index 6 is the last cell
+    assert controller.node_state((3, 6)) == board("X.. .O. ..X")
+    assert controller.node_move((3, 6)) == 8

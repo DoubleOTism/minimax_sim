@@ -34,6 +34,12 @@ LINES = (
 WIN_VALUE = 10
 
 
+# Board from text, 9 characters row by row, "." is an empty cell, spaces are ignored
+#   board_from_text("X.. .O. ..X")
+def board_from_text(text: str) -> Board:
+    return tuple("" if char == "." else char for char in text.replace(" ", ""))
+
+
 # Every mark that fills a whole line, two of them only in an impossible position
 def _winners(board: Board) -> set[str]:
     return {board[a] for a, b, c in LINES if board[a] and board[a] == board[b] == board[c]}

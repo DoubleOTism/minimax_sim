@@ -1,17 +1,26 @@
 """
-Trees offered in the side panel as presets.
+Trees and tic-tac-toe positions offered in the side panel as presets.
 
-More can be added in a JSON file given by MINIMAX_PRESETS, they come after the built-in ones:
+More can be added in a JSON file given by MINIMAX_PRESETS, they come after the built-in ones.
+Both parts are optional:
 
     {
-        "Example from the seminar": "((3 5) (2 9))",
-        "Exam tree": "(((1 4) (7 2)) ((6 3) (5 8)))"
+        "trees": {
+            "Example from the seminar": "((3 5) (2 9))"
+        },
+        "tictactoe": {
+            "Corners against the centre": {"board": "X.. .O. ..X", "depth_limit": null, "prefer_fast": true}
+        }
     }
+
+In a position only board is required, depth_limit null means no limit and prefer_fast is true when left out.
 """
 
 import json
+from dataclasses import dataclass
 
 from minimax_sim import texts
+from minimax_sim.core.games.tictactoe import TicTacToe, board_from_text
 
 # Rosen's example tree from the lecture materials
 ROSEN_TREE = "( (((3 17) (2 12)) ((15) (25 0))) (((2 5) (3)) ((2 14))) )"
@@ -96,10 +105,52 @@ BUILT_IN = (
 )
 
 
+# Tic-tac-toe position with the settings it is loaded with
+#   board        9 cells row by row, "." is an empty cell, spaces are ignored
+#   depth_limit  None means no limit
+#   prefer_fast  a faster win is worth more, see TicTacToe
+@dataclass(frozen=True, slots=True)
+class BoardPreset:
+    name: str
+    board: str
+    depth_limit: int | None
+    prefer_fast: bool = True
+
+
+# Built-in tic-tac-toe presets, the first one is loaded on start
+# Every one of them can be drawn, the largest has 1061 nodes
+TICTACTOE_BUILT_IN = (
+    # 82 nodes, alpha-beta visits 36, estimates in all leaves
+    BoardPreset(texts.TTT_PRESET_EMPTY_2, "... ... ...", 2),
+    # 586 nodes, alpha-beta visits 163, a wide tree that shows the saving best
+    BoardPreset(texts.TTT_PRESET_EMPTY_3, "... ... ...", 3),
+    # O moves, the whole game to the end, a draw
+    BoardPreset(texts.TTT_PRESET_DRAW, "X.. .O. ..X", None),
+    # O moves after taking an edge, X forces a win with a fork
+    BoardPreset(texts.TTT_PRESET_FORCED_WIN, "XO. .X. ...", None),
+    # X wins on a3 at once, without the faster win scoring it may take a longer way
+    BoardPreset(texts.TTT_PRESET_FAST_WIN, "XO. X.. .O.", None),
+)
+
+
+# Parts of the file, one for each tab
+FILE_KEYS = {"trees", "tictactoe"}
+
+# Keys a tic-tac-toe position in the file may have
+BOARD_PRESET_KEYS = {"board", "depth_limit", "prefer_fast"}
+
+
+# Presets of both tabs: trees as pairs of name and text, tic-tac-toe positions as BoardPreset
+@dataclass(frozen=True, slots=True)
+class Presets:
+    trees: list[tuple[str, str]]
+    boards: list[BoardPreset]
+
+
 # Built-in presets followed by the ones from the JSON file, if a path is given
-# The trees are checked only when chosen, a broken file stops the app on start
-def load(path: str | None) -> list[tuple[str, str]]:
-    presets = list(BUILT_IN)
+# Trees are checked only when chosen, positions right here, a broken file stops the app on start
+def load(path: str | None) -> Presets:
+    presets = Presets(list(BUILT_IN), list(TICTACTOE_BUILT_IN))
     if path is None:
         return presets
     try:
@@ -107,9 +158,38 @@ def load(path: str | None) -> list[tuple[str, str]]:
             data = json.load(file)
     except (OSError, json.JSONDecodeError) as error:
         raise ValueError(texts.PRESETS_FILE_UNREADABLE.format(path=path, error=error)) from None
-    if not isinstance(data, dict) or not all(
-        isinstance(name, str) and isinstance(tree, str) for name, tree in data.items()
+
+    # Unknown parts are refused too, so a typo in a key does not pass unnoticed
+    trees = data.get("trees", {}) if isinstance(data, dict) else None
+    boards = data.get("tictactoe", {}) if isinstance(data, dict) else None
+    if (
+        not isinstance(trees, dict)
+        or not isinstance(boards, dict)
+        or not set(data) <= FILE_KEYS
+        or not all(isinstance(tree, str) for tree in trees.values())
     ):
         raise ValueError(texts.PRESETS_FILE_FORMAT.format(path=path))
-    presets.extend(data.items())
+    presets.trees.extend(trees.items())
+    presets.boards.extend(_board_preset(path, name, value) for name, value in boards.items())
     return presets
+
+
+# Tic-tac-toe preset from an object in the file
+# Unknown keys are refused too, so a typo in a key does not pass unnoticed
+def _board_preset(path: str, name: str, value: object) -> BoardPreset:
+    if not isinstance(value, dict) or not isinstance(value.get("board"), str) or not set(value) <= BOARD_PRESET_KEYS:
+        raise ValueError(texts.PRESETS_FILE_FORMAT.format(path=path))
+    depth_limit = value.get("depth_limit")
+    prefer_fast = value.get("prefer_fast", True)
+
+    # bool is a kind of int in Python, so true must not pass as a depth limit
+    depth_ok = depth_limit is None or (type(depth_limit) is int and depth_limit >= 1)
+    if not depth_ok or not isinstance(prefer_fast, bool):
+        raise ValueError(texts.PRESETS_FILE_FORMAT.format(path=path))
+
+    # The position must be one the game accepts, the message says what is wrong with it
+    try:
+        TicTacToe(board_from_text(value["board"]))
+    except ValueError as error:
+        raise ValueError(texts.PRESETS_FILE_BOARD.format(path=path, name=name, error=error)) from None
+    return BoardPreset(name, value["board"], depth_limit, prefer_fast)

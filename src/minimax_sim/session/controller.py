@@ -7,6 +7,7 @@ One instance per tab.
 from enum import Enum
 
 from minimax_sim import config, texts
+from minimax_sim.core.events import NodeId
 from minimax_sim.core.game import Game
 from minimax_sim.core.search import Search, alphabeta, minimax
 from minimax_sim.session.layout import Layout, layout
@@ -121,6 +122,19 @@ class Controller:
             events = self._trace.events[: self.position + 1]
             self._cached_snapshot = (key, Snapshot.build(events, finished))
         return self._cached_snapshot[1]
+
+    # Game state in a node, the moves on its path played from the loaded position
+    def node_state(self, node: NodeId):
+        state = self.state
+        for index in node:
+            state = self.game.apply(state, self.game.moves(state)[index])
+        return state
+
+    # Move that led to a node, None for the root
+    def node_move(self, node: NodeId):
+        if not node:
+            return None
+        return self.game.moves(self.node_state(node[:-1]))[node[-1]]
 
     # Node positions, None if the tree is too big to draw
     def layout(self) -> Layout | None:

@@ -37,15 +37,30 @@ Vlastní strom se zadává v panelu vpravo v Rosenově zápisu a načte se přes
 
 ## Vlastní předvolby
 
-Vlastní stromy se dají přidat do JSON souboru, vzor je v `presets.example.json`:
+Vlastní stromy i pozice piškvorek se dají přidat do JSON souboru, vzor je v `presets.example.json`:
 
 ```json
 {
-  "Název v nabídce": "((3 12 8) (2 4 6) (14 5 2))"
+  "trees": {
+    "Název stromu v nabídce": "((3 12 8) (2 4 6) (14 5 2))"
+  },
+  "tictactoe": {
+    "Název pozice v nabídce": {
+      "board": "O.. .X. ...",
+      "depth_limit": 3,
+      "prefer_fast": true
+    }
+  }
 }
 ```
 
-Zápis stromu je stejný jako v panelu. Soubor se zapne v `scripts/run.sh` přes `MINIMAX_PRESETS`.
+Obě části jsou nepovinné. V `trees` je strom zapsaný stejně jako v panelu. V `tictactoe` je pozice piškvorek:
+
+- `board` je deska po řádcích, `.` je prázdné pole, mezery se ignorují
+- `depth_limit` je limit hloubky, `null` znamená bez limitu
+- `prefer_fast` je „rychlejší výhra má vyšší hodnotu“, když chybí, je zapnuté
+
+Soubor se zapne v `scripts/run.sh` přes `MINIMAX_PRESETS`.
 
 ## Testy
 

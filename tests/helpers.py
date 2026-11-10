@@ -3,6 +3,7 @@ Shared helpers for the search tests.
 """
 
 from minimax_sim.core.events import Enter, Event, Exit, Leaf, Prune
+from minimax_sim.core.games.tictactoe import board_from_text
 from minimax_sim.core.search import SearchResult
 
 
@@ -43,4 +44,4 @@ def principal_variation(events):
 # Tic-tac-toe board from 9 characters row by row, "." is an empty cell, spaces are ignored
 #   board("XX. OO. ...")
 def board(text: str) -> tuple[str, ...]:
-    return tuple("" if char == "." else char for char in text.replace(" ", ""))
+    return board_from_text(text)

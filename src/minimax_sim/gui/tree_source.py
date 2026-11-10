@@ -7,7 +7,15 @@ It parses the text itself and hands a ready game to the page.
 
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtGui import QKeySequence, QShortcut
-from PySide6.QtWidgets import QComboBox, QLabel, QPlainTextEdit, QPushButton, QVBoxLayout, QWidget
+from PySide6.QtWidgets import (
+    QComboBox,
+    QGroupBox,
+    QLabel,
+    QPlainTextEdit,
+    QPushButton,
+    QVBoxLayout,
+    QWidget,
+)
 
 from minimax_sim import texts
 from minimax_sim.core.games.abstract_tree import AbstractTree, ParseError
@@ -21,8 +29,13 @@ class TreeSource(QWidget):
     # presets are pairs of name and tree text, the first one fills the text field
     def __init__(self, presets: list[tuple[str, str]]) -> None:
         super().__init__()
-        column = QVBoxLayout(self)
-        column.setContentsMargins(0, 0, 0, 0)
+        outer = QVBoxLayout(self)
+        outer.setContentsMargins(0, 0, 0, 0)
+
+        # Everything sits in one group, like the parts of the tic-tac-toe panel
+        group = QGroupBox(texts.TREE_GROUP)
+        outer.addWidget(group)
+        column = QVBoxLayout(group)
 
         # Prepared trees, choosing one puts it into the text field and loads it
         # A loaded tree that matches no preset shows as the custom tree
@@ -72,6 +85,14 @@ class TreeSource(QWidget):
     # Show a message under the tree text, empty clears it
     def show_message(self, message: str) -> None:
         self.message_label.setText(message)
+
+    # A node of the abstract tree has no position to show, the panel stays as it is
+    def show_node(self, state, move, depth: int) -> None:
+        pass
+
+    # No bubble over the nodes of the abstract tree
+    def node_tooltip(self, state, move, depth: int) -> str:
+        return ""
 
     # Parse the text and send the game, or keep the old tree and show where the text is wrong
     def _load(self, text: str) -> None:

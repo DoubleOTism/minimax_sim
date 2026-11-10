@@ -25,7 +25,6 @@ def test_rosen_layout(rosen):
             child_xs = [tree.nodes[child].x for child in node.children]
             assert node.x == (min(child_xs) + max(child_xs)) / 2
             assert all(tree.nodes[child].y == node.y + 1 for child in node.children)
-    assert tree.nodes[(0, 1, 1)].label == "1"
     assert tree.width == 12 and tree.depth == 4
 
 

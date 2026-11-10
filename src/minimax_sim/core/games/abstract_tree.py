@@ -141,6 +141,6 @@ class AbstractTree:
     def evaluate(self, state: TreeState) -> float:
         raise NotImplementedError(texts.TREE_NO_HEURISTIC)
 
-    # Edge label is just the child index
+    # Edges have no labels, as in Rosen's figures
     def move_label(self, move: int) -> str:
-        return str(move)
+        return ""

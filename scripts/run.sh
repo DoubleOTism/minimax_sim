@@ -18,7 +18,7 @@ cd "$(dirname "$0")/.."
 # export MINIMAX_MAX_EVENTS=2000000
 
 # Trees with more nodes than this are not drawn
-# export MINIMAX_MAX_DRAWN_NODES=1500
+# export MINIMAX_MAX_DRAWN_NODES=10000
 
 # How the window opens: window, maximized or fullscreen
 # export MINIMAX_WINDOW_MODE=maximized
@@ -29,8 +29,8 @@ cd "$(dirname "$0")/.."
 # Colour themes: system, light, or dark
 # export MINIMAX_THEME=dark
 
-# Extra tree presets, a JSON file with name and tree pairs, the path is relative to the project
-export MINIMAX_PRESETS=presets.example.json
+# Extra presets for both tabs, a JSON file with the parts trees and tictactoe, the path is relative to the project
+# export MINIMAX_PRESETS=presets.example.json
 
 # System Python, the project is not installed, so Python looks for it in src/
 if [ "${1:-}" = "--system" ]; then

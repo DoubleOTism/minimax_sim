@@ -21,6 +21,7 @@ from PySide6.QtWidgets import (
 )
 
 from minimax_sim import config, presets, texts
+from minimax_sim.gui.board_source import BoardSource
 from minimax_sim.gui.simulator_page import SimulatorPage
 from minimax_sim.gui.tree_source import TreeSource
 from minimax_sim.gui.tree_view import number_text
@@ -49,8 +50,10 @@ class MainWindow(QMainWindow):
         self.tabs = QTabWidget()
         self.tabs.setTabBarAutoHide(True)
         self.setCentralWidget(self.tabs)
-        tree_page = SimulatorPage(TreeSource(presets.load(config.PRESETS_FILE)))
+        loaded_presets = presets.load(config.PRESETS_FILE)
+        tree_page = SimulatorPage(TreeSource(loaded_presets.trees))
         self._add_page(tree_page, texts.TAB_TREE)
+        self._add_page(SimulatorPage(BoardSource(loaded_presets.boards)), texts.TAB_TICTACTOE)
         self.tabs.currentChanged.connect(self._page_changed)
 
         # F9 hides and shows the panel from anywhere in the window

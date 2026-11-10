@@ -58,8 +58,8 @@ LANG = os.environ.get("MINIMAX_LANG", "cs")
 # Safety cap on events of one run
 MAX_EVENTS = _positive_int("MINIMAX_MAX_EVENTS", 2_000_000)
 
-# Larger trees are not drawn
-MAX_DRAWN_NODES = _positive_int("MINIMAX_MAX_DRAWN_NODES", 1500)
+# Larger trees are not drawn, a step takes about 1 ms per 1000 nodes and loading about 0.1 s per 1000
+MAX_DRAWN_NODES = _positive_int("MINIMAX_MAX_DRAWN_NODES", 10_000)
 
 # Default render mode: window, maximized or fullscreen
 WINDOW_MODE = _choice("MINIMAX_WINDOW_MODE", "window", ("window", "maximized", "fullscreen"))

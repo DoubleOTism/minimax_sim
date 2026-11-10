@@ -7,7 +7,15 @@ The step explanation will come here too.
 
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QFont
-from PySide6.QtWidgets import QFrame, QGridLayout, QLabel, QScrollArea, QVBoxLayout, QWidget
+from PySide6.QtWidgets import (
+    QFrame,
+    QGridLayout,
+    QGroupBox,
+    QLabel,
+    QScrollArea,
+    QVBoxLayout,
+    QWidget,
+)
 
 from minimax_sim import texts
 from minimax_sim.session.controller import Algorithm
@@ -48,9 +56,9 @@ class SidePanel(QScrollArea):
         column.addWidget(source, 1)
 
         # Counters of both algorithms side by side, one row per Stats field
-        column.addWidget(QLabel(texts.STATS_TITLE))
-        table = QGridLayout()
-        column.addLayout(table)
+        stats_group = QGroupBox(texts.STATS_TITLE)
+        table = QGridLayout(stats_group)
+        column.addWidget(stats_group)
         self.algorithm_labels = {
             Algorithm.MINIMAX: QLabel(texts.ALGORITHM_MINIMAX),
             Algorithm.ALPHABETA: QLabel(texts.ALGORITHM_ALPHABETA),

@@ -78,7 +78,7 @@ def test_game_interface():
     leaf = game.apply(child, 0)
     assert game.is_terminal(leaf) and not game.is_terminal(child)
     assert game.utility(leaf, 2) == 3
-    assert game.move_label(1) == "1"
+    assert game.move_label(1) == ""
 
 
 # Seen from the other player, MIN moves first and the levels still alternate
