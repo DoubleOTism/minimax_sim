@@ -84,7 +84,7 @@ def test_win_in_one():
     assert visited(events) == 36
 
 
-# Empty board ends in a draw, the counts match the reference from the old prototype
+# Empty board ends in a draw, alpha-beta without the faster win preference
 def test_empty_board_alphabeta():
     game = TicTacToe(prefer_fast=False)
     events, result = run(alphabeta(game, game.initial_state()))
