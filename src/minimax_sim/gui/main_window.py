@@ -79,6 +79,15 @@ class MainWindow(QMainWindow):
         self.prune_box.currentIndexChanged.connect(self._prune_rule_selected)
         toolbar.addWidget(self.prune_box)
 
+        # Order in which the moves are tried, each item carries the value of right_to_left as data
+        # It applies to both algorithms, minimax visits the nodes in a different order too
+        self.order_box = QComboBox()
+        self.order_box.addItem(texts.ORDER_LEFT_TO_RIGHT, False)
+        self.order_box.addItem(texts.ORDER_RIGHT_TO_LEFT, True)
+        self.order_box.setToolTip(texts.ORDER_TIP)
+        self.order_box.currentIndexChanged.connect(self._order_selected)
+        toolbar.addWidget(self.order_box)
+
         # Stepping buttons, each with its keyboard shortcut
         self._add_spacer(toolbar)
         self.to_start_action = self._add_action(toolbar, texts.STEP_TO_START, Qt.Key.Key_Home, self._to_start)
@@ -185,7 +194,12 @@ class MainWindow(QMainWindow):
     def _page_changed(self) -> None:
         self._stop_playing()
         controller = self._page().controller
-        for box, value in ((self.algorithm_box, controller.algorithm), (self.prune_box, controller.prune_on_equal)):
+        boxes = (
+            (self.algorithm_box, controller.algorithm),
+            (self.prune_box, controller.prune_on_equal),
+            (self.order_box, controller.right_to_left),
+        )
+        for box, value in boxes:
             box.blockSignals(True)
             box.setCurrentIndex(box.findData(value))
             box.blockSignals(False)
@@ -245,6 +259,12 @@ class MainWindow(QMainWindow):
     def _prune_rule_selected(self) -> None:
         self._stop_playing()
         self._page().controller.set_prune_on_equal(self.prune_box.currentData())
+        self._refresh()
+
+    # Start a new run with the move order picked in the drop-down
+    def _order_selected(self) -> None:
+        self._stop_playing()
+        self._page().controller.set_right_to_left(self.order_box.currentData())
         self._refresh()
 
     def _to_start(self) -> None:

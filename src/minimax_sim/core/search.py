@@ -40,7 +40,10 @@ def _leaf_value(game: Game, state, depth: int, depth_limit: int | None) -> tuple
     return game.evaluate(state), LeafReason.DEPTH_LIMIT
 
 
-# Strictly better only, so on a tie the first move stays the best
+def _move_order(count: int, right_to_left: bool) -> list[int]:
+    return list(range(count - 1, -1, -1)) if right_to_left else list(range(count))
+
+
 def _better(value: float, best: float, is_max: bool) -> bool:
     return value > best if is_max else value < best
 
@@ -50,11 +53,13 @@ def _better(value: float, best: float, is_max: bool) -> bool:
 ###
 
 # Plain minimax from the given state, no pruning
-def minimax(game: Game, state, depth_limit: int | None = None) -> Search:
-    return (yield from _minimax(game, state, depth_limit, (), 0))
+def minimax(game: Game, state, depth_limit: int | None = None, *, right_to_left: bool = False) -> Search:
+    return (yield from _minimax(game, state, depth_limit, (), 0, right_to_left))
 
 
-def _minimax(game: Game, state, depth_limit: int | None, node: NodeId, depth: int) -> Search:
+def _minimax(
+    game: Game, state, depth_limit: int | None, node: NodeId, depth: int, right_to_left: bool
+) -> Search:
     is_max = game.is_max_turn(state)
     yield Enter(node, depth, is_max, -inf, inf)
 
@@ -67,9 +72,10 @@ def _minimax(game: Game, state, depth_limit: int | None, node: NodeId, depth: in
     # Inner node: try every move, MAX keeps the highest value, MIN the lowest
     best_value = -inf if is_max else inf
     best_move = None
-    for i, move in enumerate(game.moves(state)):
+    moves = game.moves(state)
+    for i in _move_order(len(moves), right_to_left):
         child = yield from _minimax(
-            game, game.apply(state, move), depth_limit, node + (i,), depth + 1
+            game, game.apply(state, moves[i]), depth_limit, node + (i,), depth + 1, right_to_left
         )
         if best_move is None or _better(child.value, best_value, is_max):
             best_value, best_move = child.value, i
@@ -84,10 +90,15 @@ def _minimax(game: Game, state, depth_limit: int | None, node: NodeId, depth: in
 
 # Alpha-beta from the given state, prunes on alpha >= beta (or alpha > beta)
 def alphabeta(
-    game: Game, state, depth_limit: int | None = None, *, prune_on_equal: bool = True
+    game: Game,
+    state,
+    depth_limit: int | None = None,
+    *,
+    prune_on_equal: bool = True,
+    right_to_left: bool = False,
 ) -> Search:
     result, _pruned = yield from _alphabeta(
-        game, state, depth_limit, (), 0, -inf, inf, prune_on_equal
+        game, state, depth_limit, (), 0, -inf, inf, prune_on_equal, right_to_left
     )
     return result
 
@@ -102,6 +113,7 @@ def _alphabeta(
     alpha: float,
     beta: float,
     prune_on_equal: bool,
+    right_to_left: bool,
 ) -> Generator[Event, None, tuple[SearchResult, bool]]:
     is_max = game.is_max_turn(state)
     yield Enter(node, depth, is_max, alpha, beta)
@@ -118,17 +130,19 @@ def _alphabeta(
     best_move = None
     pruned = False
     moves = game.moves(state)
+    order = _move_order(len(moves), right_to_left)
 
-    for i, move in enumerate(moves):
+    for position, i in enumerate(order):
         child, child_pruned = yield from _alphabeta(
             game,
-            game.apply(state, move),
+            game.apply(state, moves[i]),
             depth_limit,
             node + (i,),
             depth + 1,
             alpha,
             beta,
             prune_on_equal,
+            right_to_left,
         )
         pruned = pruned or child_pruned
         if best_move is None or _better(child.value, best_value, is_max):
@@ -142,10 +156,9 @@ def _alphabeta(
             beta = best_value
             yield BoundUpdate(node, alpha, beta)
 
-        # Bounds crossed: the remaining moves cannot change the result
         cutoff = alpha >= beta if prune_on_equal else alpha > beta
-        if cutoff and i < len(moves) - 1:
-            yield Prune(node, tuple(range(i + 1, len(moves))))
+        if cutoff and position < len(order) - 1:
+            yield Prune(node, tuple(order[position + 1 :]))
             pruned = True
             break
 

@@ -1,6 +1,5 @@
 {
     "trees": {
-        "Russell a Norvig, hra na dva tahy": "((3 12 8) (2 4 6) (14 5 2))",
         "Malý strom se zápornými čísly": "(((-2 4) (6 -5)) ((-7 1) (3 -6)))"
     },
     "tictactoe": {

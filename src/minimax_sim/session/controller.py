@@ -31,11 +31,12 @@ class Controller:
         self.depth_limit: int | None = None
         self.algorithm = Algorithm.MINIMAX
         self.prune_on_equal = True
+        self.right_to_left = False
         self.position = -1
         self._trace: Trace | None = None
         self._layout: Layout | None = None
         self._cached_snapshot: tuple[tuple[int, bool], Snapshot] | None = None
-        self._cached_stats: tuple[bool, dict[Algorithm, Stats | None]] | None = None
+        self._cached_stats: tuple[tuple[bool, bool], dict[Algorithm, Stats | None]] | None = None
 
     #####
     # setup
@@ -58,11 +59,22 @@ class Controller:
         self.prune_on_equal = prune_on_equal
         self._restart()
 
-    # Fresh search of the loaded position with the given algorithm and the current pruning rule
+    # Switch between trying the moves left to right and right to left, the run starts again
+    def set_right_to_left(self, right_to_left: bool) -> None:
+        self.right_to_left = right_to_left
+        self._restart()
+
+    # Fresh search of the loaded position with the given algorithm, the current pruning rule and move order
     def _new_search(self, algorithm: Algorithm) -> Search:
         if algorithm is Algorithm.MINIMAX:
-            return minimax(self.game, self.state, self.depth_limit)
-        return alphabeta(self.game, self.state, self.depth_limit, prune_on_equal=self.prune_on_equal)
+            return minimax(self.game, self.state, self.depth_limit, right_to_left=self.right_to_left)
+        return alphabeta(
+            self.game,
+            self.state,
+            self.depth_limit,
+            prune_on_equal=self.prune_on_equal,
+            right_to_left=self.right_to_left,
+        )
 
     # Throw the old run away and go back before the first step
     def _restart(self) -> None:
@@ -148,11 +160,11 @@ class Controller:
         return texts.TREE_TOO_BIG.format(limit=config.MAX_DRAWN_NODES)
 
     # Counters of whole runs of both algorithms, None for a run stopped by the event limit
-    # Computed once per position and pruning rule, the stepping does not change them
     def stats(self) -> dict[Algorithm, Stats | None]:
-        if self._cached_stats is None or self._cached_stats[0] != self.prune_on_equal:
+        key = (self.prune_on_equal, self.right_to_left)
+        if self._cached_stats is None or self._cached_stats[0] != key:
             stats = {algorithm: self._run_stats(algorithm) for algorithm in Algorithm}
-            self._cached_stats = (self.prune_on_equal, stats)
+            self._cached_stats = (key, stats)
         return self._cached_stats[1]
 
     # Run one algorithm to the end and count its work
