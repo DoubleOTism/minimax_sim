@@ -111,3 +111,23 @@ def test_mid_game_both_algorithms():
     assert minimax_result.value == alphabeta_result.value == 0
     assert principal_variation(minimax_events) == principal_variation(alphabeta_events)
     assert (visited(minimax_events), visited(alphabeta_events)) == (1053, 356)
+
+
+# Right to left the cells are tried in the order 8, 7, ..., 0, which is the board turned by 180 degrees
+# A position that looks the same turned around gives the same counts in both directions,
+# any other position shows that the direction changes how much alpha-beta prunes
+@pytest.mark.parametrize(
+    ("text", "depth_limit", "left_nodes", "right_nodes"),
+    [
+        ("... ... ...", 3, 163, 163),
+        ("X.. .O. ..X", None, 356, 356),
+        ("XO. .X. ...", None, 410, 112),
+    ],
+)
+def test_alphabeta_right_to_left(text, depth_limit, left_nodes, right_nodes):
+    game = TicTacToe(board(text))
+    left_events, left = run(alphabeta(game, game.initial_state(), depth_limit))
+    right_events, right = run(alphabeta(game, game.initial_state(), depth_limit, right_to_left=True))
+    assert left.value == right.value
+    assert visited(left_events) == left_nodes
+    assert visited(right_events) == right_nodes

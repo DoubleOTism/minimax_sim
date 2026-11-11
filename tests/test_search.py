@@ -64,6 +64,7 @@ def test_prune_only_when_moves_remain(rosen):
     assert all(p.node != (1, 0, 1) for p in pruned)
     assert all(p.skipped for p in pruned)
 
+
 # Rosen's tree seen from the other player, MIN moves first
 # Value 14 from both algorithms, alpha-beta prunes only the 0 under (25 0)
 def test_rosen_min_root():
@@ -77,3 +78,17 @@ def test_rosen_min_root():
     assert principal_variation(events) == (1, 1, 0, 1)
     assert leaves(events) == [3, 17, 2, 12, 15, 25, 2, 5, 3, 2, 14]
     assert [p.node for p in events if isinstance(p, Prune)] == [(0, 1, 1)]
+
+
+# Right to left: the leaves come in the opposite order, the value and the optimal line stay
+# Alpha-beta then prunes the left children, ids still count from the left, so the skipped one is 0
+def test_rosen_right_to_left(rosen):
+    events, result = run(minimax(rosen, rosen.initial_state(), right_to_left=True))
+    assert result.value == 3
+    assert leaves(events) == [14, 2, 3, 5, 2, 0, 25, 15, 12, 2, 17, 3]
+    assert principal_variation(events) == (0, 0, 0, 0)
+
+    events, result = run(alphabeta(rosen, rosen.initial_state(), right_to_left=True))
+    assert result.value == 3
+    assert leaves(events) == [14, 2, 3, 0, 15, 12, 2, 17, 3]
+    assert [(p.node, p.skipped) for p in events if isinstance(p, Prune)] == [((1, 0), (0,)), ((0, 1, 1), (0,))]

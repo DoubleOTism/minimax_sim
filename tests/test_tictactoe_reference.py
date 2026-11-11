@@ -88,7 +88,7 @@ def test_valid_positions_match_reference():
         assert game.is_terminal(game.initial_state()) == reference_is_over(cells), cells
 
 
-# Minimax and alpha-beta under both pruning rules give the reference value
+# Minimax and alpha-beta under both pruning rules and in both move orders give the reference value
 # in every open position with 3 or 4 marks, the positions are chosen by the reference only
 # Alpha-beta may skip nodes, but the value of the root must never change
 @pytest.mark.parametrize("prefer_fast", [False, True])
@@ -106,6 +106,8 @@ def test_search_matches_reference_solver(prefer_fast):
             minimax(game, game.initial_state()),
             alphabeta(game, game.initial_state(), prune_on_equal=True),
             alphabeta(game, game.initial_state(), prune_on_equal=False),
+            alphabeta(game, game.initial_state(), prune_on_equal=True, right_to_left=True),
+            alphabeta(game, game.initial_state(), prune_on_equal=False, right_to_left=True),
         ]
         for search in searches:
             _, result = run(search)

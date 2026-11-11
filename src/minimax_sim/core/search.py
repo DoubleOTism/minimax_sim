@@ -3,6 +3,10 @@ Minimax and alpha-beta as recursive generators.
 
 Each generator yields events (see events.py) and returns a SearchResult
 at the end. Leaves emit Enter + Leaf, inner nodes emit Enter ... Exit.
+
+
+Moves are tried left to right, or right to left with right_to_left.
+Node IDs always index into game.moves(state), so the tree looks the same either way, only the order of the visits changes.
 """
 
 from collections.abc import Generator
@@ -40,10 +44,12 @@ def _leaf_value(game: Game, state, depth: int, depth_limit: int | None) -> tuple
     return game.evaluate(state), LeafReason.DEPTH_LIMIT
 
 
+# Indices of the moves in the order they are tried
 def _move_order(count: int, right_to_left: bool) -> list[int]:
     return list(range(count - 1, -1, -1)) if right_to_left else list(range(count))
 
 
+# Strictly better only, so on a tie the move tried first stays the best
 def _better(value: float, best: float, is_max: bool) -> bool:
     return value > best if is_max else value < best
 
@@ -132,6 +138,7 @@ def _alphabeta(
     moves = game.moves(state)
     order = _move_order(len(moves), right_to_left)
 
+    # position counts the tried moves, i is the index of the move in moves
     for position, i in enumerate(order):
         child, child_pruned = yield from _alphabeta(
             game,
@@ -156,6 +163,7 @@ def _alphabeta(
             beta = best_value
             yield BoundUpdate(node, alpha, beta)
 
+        # Bounds crossed: the moves not tried yet cannot change the result
         cutoff = alpha >= beta if prune_on_equal else alpha > beta
         if cutoff and position < len(order) - 1:
             yield Prune(node, tuple(order[position + 1 :]))

@@ -104,3 +104,14 @@ def test_node_state_and_move():
     # Then the empty cells are 1, 2, 3, 5, 6, 7, 8, index 6 is the last cell
     assert controller.node_state((3, 6)) == board("X.. .O. ..X")
     assert controller.node_move((3, 6)) == 8
+
+
+# Switching the move order starts the run again and gives other counters
+# Rosen's tree right to left: alpha-beta evaluates 9 leaves instead of 6
+def test_right_to_left_restarts_and_changes_counters(ctl):
+    ctl.step_forward()
+    assert ctl.stats()[Algorithm.ALPHABETA].leaves == 6
+    ctl.set_right_to_left(True)
+    assert ctl.position == -1
+    assert ctl.stats()[Algorithm.ALPHABETA].leaves == 9
+    assert ctl.stats()[Algorithm.MINIMAX].leaves == 12

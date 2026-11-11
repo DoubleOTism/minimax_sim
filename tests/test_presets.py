@@ -122,3 +122,16 @@ def test_fast_win_preset():
         events, _ = run(minimax(game, game.initial_state()))
         lengths.append(len(principal_variation(events)))
     assert lengths[0] == 1 and lengths[1] > 1
+
+
+# The worst order tree is the best order tree mirrored, so right to left they swap
+# Best order then prunes nothing and worst order evaluates only 7 of the 16 leaves
+def test_move_order_presets_right_to_left():
+    best = AbstractTree(presets.BEST_ORDER_TREE)
+    events, _ = run(alphabeta(best, best.initial_state(), right_to_left=True))
+    assert len(leaves(events)) == 16
+    assert prunes(events) == 0
+
+    worst = AbstractTree(presets.WORST_ORDER_TREE)
+    events, _ = run(alphabeta(worst, worst.initial_state(), right_to_left=True))
+    assert len(leaves(events)) == 7

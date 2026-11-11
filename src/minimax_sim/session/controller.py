@@ -160,6 +160,7 @@ class Controller:
         return texts.TREE_TOO_BIG.format(limit=config.MAX_DRAWN_NODES)
 
     # Counters of whole runs of both algorithms, None for a run stopped by the event limit
+    # Computed once per position, pruning rule and move order, the stepping does not change them
     def stats(self) -> dict[Algorithm, Stats | None]:
         key = (self.prune_on_equal, self.right_to_left)
         if self._cached_stats is None or self._cached_stats[0] != key:
