@@ -10,7 +10,9 @@ import pytest
 from PySide6.QtCore import QRectF
 from PySide6.QtGui import QColor, QImage, QPainter
 
+from minimax_sim import texts
 from minimax_sim.core.games.tictactoe import TicTacToe
+from minimax_sim.gui.tree_source import TreeSource
 from minimax_sim.gui.tree_view import OPTIMAL_LINE_COLOR, TreeView
 from minimax_sim.session.controller import Algorithm, Controller
 from tests.helpers import board
@@ -80,3 +82,23 @@ def test_optimal_line_is_green(qt_app, rosen):
     for node in controller.snapshot().principal_variation[1:]:
         assert view._edges[node].pen().color() == green
         assert view._shapes[node].pen().color() == green
+
+
+# The bubble over a node of the abstract tree describes it: who moves and the leaves below, or the leaf value
+# A large subtree lists only the first leaves and the count
+def test_tree_source_describes_nodes(qt_app, rosen):
+    source = TreeSource([("Rosen", "((3 17) (2 12))")])
+    controller = Controller()
+    controller.load(rosen, rosen.initial_state())
+
+    assert source.node_tooltip(controller.node_state(()), None, 0).split("<br>") == [
+        texts.TREE_NODE_MAX.format(children=2),
+        texts.TREE_NODE_DEPTH.format(depth=0),
+        texts.TREE_NODE_LEAVES.format(values=texts.TREE_NODE_MORE_LEAVES.format(values="3, 17, 2, 12, 15, 25, 0, 2", count=12)),
+    ]
+
+    lines = source.node_tooltip(controller.node_state((0, 0, 0)), 0, 3).split("<br>")
+    assert lines[2] == texts.TREE_NODE_LEAVES.format(values="3, 17")
+
+    leaf = (0, 0, 0, 1)
+    assert source.node_tooltip(controller.node_state(leaf), 1, 4) == texts.TREE_NODE_LEAF.format(value="17", depth=4)

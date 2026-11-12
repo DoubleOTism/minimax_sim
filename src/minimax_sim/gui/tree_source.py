@@ -3,6 +3,7 @@ Input of the abstract tree, shown at the top of the side panel.
 
 Presets, the player in the root and the tree text in Rosen's format.
 It parses the text itself and hands a ready game to the page.
+The bubble over a node describes it: who moves there or the value of the leaf, and the leaves below it.
 """
 
 from PySide6.QtCore import Qt, Signal
@@ -18,7 +19,11 @@ from PySide6.QtWidgets import (
 )
 
 from minimax_sim import texts
-from minimax_sim.core.games.abstract_tree import AbstractTree, ParseError
+from minimax_sim.core.games.abstract_tree import AbstractTree, ParseError, Tree, TreeState
+from minimax_sim.numbers import number_text
+
+# Most leaf values listed for one node, a larger subtree gets only the first ones and the count
+MAX_LISTED_LEAVES = 8
 
 
 # Presets, root player and tree text, sends a game when a valid tree should be loaded
@@ -86,13 +91,13 @@ class TreeSource(QWidget):
     def show_message(self, message: str) -> None:
         self.message_label.setText(message)
 
-    # A node of the abstract tree has no position to show, the panel stays as it is
-    def show_node(self, state, move, depth: int) -> None:
+    # A node of the abstract tree has no position to show, the step explanation says what happens
+    def show_node(self, state: TreeState, move: int | None, depth: int) -> None:
         pass
 
-    # No bubble over the nodes of the abstract tree
-    def node_tooltip(self, state, move, depth: int) -> str:
-        return ""
+    # Text of the bubble over a node: who moves there or the value of the leaf, and the leaves below it
+    def node_tooltip(self, state: TreeState, move: int | None, depth: int) -> str:
+        return _node_text(state, depth).replace("\n", "<br>")
 
     # Parse the text and send the game, or keep the old tree and show where the text is wrong
     def _load(self, text: str) -> None:
@@ -118,3 +123,27 @@ class TreeSource(QWidget):
     # The text field may be edited and not loaded yet, so the last loaded tree is used
     def _root_player_selected(self) -> None:
         self._load(self._tree_text)
+
+
+# Who moves in the node or the value of the leaf, its depth and the leaves below it
+def _node_text(state: TreeState, depth: int) -> str:
+    if not isinstance(state.node, tuple):
+        return texts.TREE_NODE_LEAF.format(value=number_text(state.node), depth=depth)
+    player = texts.TREE_NODE_MAX if state.is_max else texts.TREE_NODE_MIN
+    leaves = _leaf_values(state.node)
+    listed = ", ".join(number_text(value) for value in leaves[:MAX_LISTED_LEAVES])
+    if len(leaves) > MAX_LISTED_LEAVES:
+        listed = texts.TREE_NODE_MORE_LEAVES.format(values=listed, count=len(leaves))
+    lines = (
+        player.format(children=len(state.node)),
+        texts.TREE_NODE_DEPTH.format(depth=depth),
+        texts.TREE_NODE_LEAVES.format(values=listed),
+    )
+    return "\n".join(lines)
+
+
+# Values of all leaves below a node, from left to right
+def _leaf_values(tree: Tree) -> list[float]:
+    if not isinstance(tree, tuple):
+        return [tree]
+    return [value for child in tree for value in _leaf_values(child)]

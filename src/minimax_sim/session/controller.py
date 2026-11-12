@@ -11,6 +11,7 @@ from minimax_sim.core.events import NodeId
 from minimax_sim.core.game import Game
 from minimax_sim.core.search import Search, alphabeta, minimax
 from minimax_sim.session.layout import Layout, layout
+from minimax_sim.session.narration import explain
 from minimax_sim.session.snapshot import Snapshot
 from minimax_sim.session.stats import Stats, count
 from minimax_sim.session.trace import Trace
@@ -134,6 +135,17 @@ class Controller:
             events = self._trace.events[: self.position + 1]
             self._cached_snapshot = (key, Snapshot.build(events, finished))
         return self._cached_snapshot[1]
+
+    # What happened in the current step, in plain words
+    def explanation(self) -> str:
+        if self.position < 0:
+            return texts.STEP_NOT_STARTED
+        show_bounds = self.algorithm is Algorithm.ALPHABETA
+        return explain(self._trace.events, self.position, self._move_label, show_bounds)
+
+    # Name of the move that leads to a node, empty when the game does not name its moves
+    def _move_label(self, node: NodeId) -> str:
+        return self.game.move_label(self.node_move(node))
 
     # Game state in a node, the moves on its path played from the loaded position
     def node_state(self, node: NodeId):

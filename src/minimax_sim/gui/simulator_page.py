@@ -74,6 +74,7 @@ class SimulatorPage(QWidget):
             show_bounds = self.controller.algorithm is Algorithm.ALPHABETA
             self.tree_view.draw(layout, snapshot, show_bounds)
         self.source.show_node(*self._node_position(_shown_node(snapshot)))
+        self.side_panel.show_step(self.controller.explanation())
         self.side_panel.show_stats(self.controller.stats(), self.controller.algorithm)
 
     # Start a new run over the game, a tree too big to draw is reported in the source

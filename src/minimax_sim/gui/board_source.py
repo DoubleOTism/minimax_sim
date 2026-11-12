@@ -25,8 +25,6 @@ from PySide6.QtWidgets import (
     QLayout,
     QPushButton,
     QSpinBox,
-    QToolButton,
-    QToolTip,
     QVBoxLayout,
     QWidget,
 )
@@ -35,6 +33,7 @@ from minimax_sim import texts
 from minimax_sim.core.games.tictactoe import Board, TicTacToe, board_from_text, winner
 from minimax_sim.core.search import is_leaf
 from minimax_sim.gui.board_view import BoardView, board_html
+from minimax_sim.gui.help_button import help_button
 from minimax_sim.presets import BoardPreset
 
 # Side of one cell of the clickable board in pixels
@@ -124,7 +123,7 @@ class BoardSource(QWidget):
         self.prefer_fast_box.setToolTip(texts.PREFER_FAST_TIP)
         prefer_fast_row = QHBoxLayout()
         prefer_fast_row.addWidget(self.prefer_fast_box)
-        prefer_fast_row.addWidget(_help_button(texts.PREFER_FAST_TIP))
+        prefer_fast_row.addWidget(help_button(texts.PREFER_FAST_TIP))
         prefer_fast_row.addStretch()
         search_column.addLayout(prefer_fast_row)
 
@@ -148,7 +147,7 @@ class BoardSource(QWidget):
         self.node_label = QLabel()
         self.node_label.setWordWrap(True)
         node_row.addWidget(self.node_label, 1)
-        self.legend_help = _help_button("")
+        self.legend_help = help_button("")
         node_row.addWidget(self.legend_help, 0, Qt.AlignmentFlag.AlignTop)
         column.addWidget(node_group)
         column.addStretch()
@@ -239,18 +238,6 @@ class BoardSource(QWidget):
     def _clear(self) -> None:
         for button in self.cells:
             button.setText("")
-
-
-# Small "?" button with an explanation, shown on hover and also on click
-# The click shows the current tooltip text, so a later setToolTip() changes the text on hover and on click
-def _help_button(text: str) -> QToolButton:
-    button = QToolButton()
-    button.setText("?")
-    button.setToolTip(text)
-    button.clicked.connect(
-        lambda: QToolTip.showText(button.mapToGlobal(button.rect().bottomLeft()), button.toolTip(), button)
-    )
-    return button
 
 
 # Layout in a row with free space on both sides, so it stays in the middle

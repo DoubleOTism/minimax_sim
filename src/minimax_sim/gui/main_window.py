@@ -24,7 +24,7 @@ from minimax_sim import config, presets, texts
 from minimax_sim.gui.board_source import BoardSource
 from minimax_sim.gui.simulator_page import SimulatorPage
 from minimax_sim.gui.tree_source import TreeSource
-from minimax_sim.gui.tree_view import number_text
+from minimax_sim.numbers import number_text
 from minimax_sim.session.controller import Algorithm
 from minimax_sim.session.snapshot import Status
 

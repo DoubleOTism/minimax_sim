@@ -19,7 +19,6 @@ Colours come from the system theme, so the tree works in light and dark mode.
 """
 
 from collections.abc import Callable
-from math import isinf
 
 from PySide6.QtCore import QEvent, QPoint, QPointF, QRectF, Qt
 from PySide6.QtGui import (
@@ -43,7 +42,8 @@ from PySide6.QtWidgets import (
     QToolTip,
 )
 
-from minimax_sim.core.events import NodeId, ValueKind
+from minimax_sim.core.events import NodeId
+from minimax_sim.numbers import number_text, value_text
 from minimax_sim.session.layout import Layout
 from minimax_sim.session.snapshot import NodeState, Snapshot, Status
 
@@ -64,9 +64,6 @@ PATH_FILL_ALPHA = 90
 
 # Colour of the optimal line, readable on both light and dark background
 OPTIMAL_LINE_COLOR = "#3aa655"
-
-# Sign in front of a value that is only a bound
-BOUND_SIGNS = {ValueKind.EXACT: "", ValueKind.UPPER: "≤", ValueKind.LOWER: "≥"}
 
 # Size of the α and β text next to a node, in node sizes
 BOUNDS_TEXT_SIZE = 0.3
@@ -441,13 +438,4 @@ def _statuses(layout: Layout, snapshot: Snapshot) -> dict[NodeId, Status]:
 def _value_text(node_state: NodeState | None) -> str:
     if node_state is None or node_state.value is None:
         return ""
-    return BOUND_SIGNS[node_state.kind] + number_text(node_state.value)
-
-
-# Number without ".0", 3.0 is shown as 3, infinity as ∞
-def number_text(value: float) -> str:
-    if isinf(value):
-        return "∞" if value > 0 else "−∞"
-    if isinstance(value, float) and value.is_integer():
-        return str(int(value))
-    return str(value)
+    return value_text(node_state.value, node_state.kind)
