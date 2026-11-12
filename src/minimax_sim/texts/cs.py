@@ -60,7 +60,8 @@ SYMBOLS_LEGEND = (
     "Modře je aktivní uzel a cesta k němu, po dokončení je zeleně optimální linie.\n"
     "≤ a ≥ před číslem: hodnota je jen mez, protože se pod uzlem něco prořízlo.\n"
     "Tečkovaně jsou prořezané větve, šedě uzly, kam hledání zatím nedošlo.\n"
-    "α a β u alfa-bety: hodnota, kterou má MAX (α) a MIN (β) na cestě z kořene už jistou."
+    "α a β u alfa-bety: hodnota, kterou má MAX (α) a MIN (β) na cestě z kořene už jistou.\n"
+    "U piškvorek dvojklik na uzel ukáže jeho desku přímo ve stromu, další dvojklik ji schová."
 )
 TREE_LABEL = "Definice stromu:"
 TREE_LOAD = "Načíst (Ctrl+Enter)"

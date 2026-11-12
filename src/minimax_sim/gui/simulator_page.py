@@ -5,7 +5,7 @@ The main window has one page per tab, its toolbar controls the page that is show
 """
 
 from PySide6.QtCore import Qt, Signal
-from PySide6.QtWidgets import QHBoxLayout, QSizePolicy, QToolButton, QWidget
+from PySide6.QtWidgets import QGraphicsItem, QHBoxLayout, QSizePolicy, QToolButton, QWidget
 
 from minimax_sim import texts
 from minimax_sim.core.events import NodeId
@@ -26,7 +26,8 @@ ARROW_WIDTH = 14
 # Tree, side panel and the controller of their search run
 # source is the game input, a widget with the game_requested signal,
 # request_load() that sends the first game, show_message() for problems,
-# show_node() that shows the position in a node and node_tooltip() for the bubble over a node
+# show_node() that shows the position in a node, node_picture() that draws it in an expanded node
+# and node_tooltip() for the bubble over a node
 class SimulatorPage(QWidget):
     # Sent after a new game was loaded, the window then refreshes the toolbar and the status bar
     loaded = Signal()
@@ -40,6 +41,7 @@ class SimulatorPage(QWidget):
         # Tree in the middle, side panel on the right, between them a thin button that hides the panel
         self.tree_view = TreeView()
         self.tree_view.node_tooltip = self._node_tooltip
+        self.tree_view.node_picture = self._node_picture
         self.side_panel = SidePanel(source)
         self.panel_button = QToolButton()
         self.panel_button.setArrowType(Qt.ArrowType.RightArrow)
@@ -86,6 +88,10 @@ class SimulatorPage(QWidget):
     # Text of the bubble over a node in the tree
     def _node_tooltip(self, node: NodeId) -> str:
         return self.source.node_tooltip(*self._node_position(node))
+
+    # Picture of the position in an expanded node of the tree, None if the game has none
+    def _node_picture(self, node: NodeId) -> QGraphicsItem | None:
+        return self.source.node_picture(*self._node_position(node))
 
     # Game state in a node, the move that led to it and its depth
     def _node_position(self, node: NodeId) -> tuple[object, object, int]:

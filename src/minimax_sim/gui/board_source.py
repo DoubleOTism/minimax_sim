@@ -32,7 +32,7 @@ from PySide6.QtWidgets import (
 from minimax_sim import texts
 from minimax_sim.core.games.tictactoe import Board, TicTacToe, board_from_text, winner
 from minimax_sim.core.search import is_leaf
-from minimax_sim.gui.board_view import BoardView, board_html
+from minimax_sim.gui.board_view import BoardItem, BoardView, board_html
 from minimax_sim.gui.help_button import help_button
 from minimax_sim.presets import BoardPreset
 
@@ -150,7 +150,6 @@ class BoardSource(QWidget):
         self.legend_help = help_button("")
         node_row.addWidget(self.legend_help, 0, Qt.AlignmentFlag.AlignTop)
         column.addWidget(node_group)
-        column.addStretch()
 
         # Game and depth limit that were sent last, the node texts are worked out from them
         self._game: TicTacToe | None = None
@@ -184,6 +183,10 @@ class BoardSource(QWidget):
     def show_node(self, state: Board, move: int | None, depth: int) -> None:
         self.node_board.show_board(state, move)
         self.node_label.setText(self._node_text(state, move, depth))
+
+    # Board drawn in the tree in place of an expanded node
+    def node_picture(self, state: Board, move: int | None, depth: int) -> BoardItem:
+        return BoardItem(state, move)
 
     # Text of the bubble over a node, the board and the same lines as in the panel
     def node_tooltip(self, state: Board, move: int | None, depth: int) -> str:

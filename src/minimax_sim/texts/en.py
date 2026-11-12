@@ -60,7 +60,8 @@ SYMBOLS_LEGEND = (
     "Blue is the active node and the path to it, after the end the optimal line is green.\n"
     "≤ and ≥ before a number: the value is only a bound, because something below the node was pruned.\n"
     "Dotted are pruned branches, grey are nodes the search has not reached yet.\n"
-    "α and β with alpha-beta: the value MAX (α) and MIN (β) already have for sure on the path from the root."
+    "α and β with alpha-beta: the value MAX (α) and MIN (β) already have for sure on the path from the root.\n"
+    "In tic-tac-toe a double click on a node shows its board right in the tree, another double click hides it."
 )
 TREE_LABEL = "Tree definition:"
 TREE_LOAD = "Load (Ctrl+Enter)"

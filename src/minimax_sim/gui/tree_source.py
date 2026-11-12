@@ -25,6 +25,9 @@ from minimax_sim.numbers import number_text
 # Most leaf values listed for one node, a larger subtree gets only the first ones and the count
 MAX_LISTED_LEAVES = 8
 
+# Height of the tree text field in lines, a longer tree scrolls
+TREE_EDIT_LINES = 8
+
 
 # Presets, root player and tree text, sends a game when a valid tree should be loaded
 class TreeSource(QWidget):
@@ -65,7 +68,9 @@ class TreeSource(QWidget):
         column.addWidget(QLabel(texts.TREE_LABEL))
         self.tree_edit = QPlainTextEdit(presets[0][1])
         self.tree_edit.setLineWrapMode(QPlainTextEdit.LineWrapMode.NoWrap)
-        column.addWidget(self.tree_edit, 1)
+        border = self.tree_edit.frameWidth() + self.tree_edit.document().documentMargin()
+        self.tree_edit.setFixedHeight(int(self.tree_edit.fontMetrics().lineSpacing() * TREE_EDIT_LINES + 2 * border))
+        column.addWidget(self.tree_edit)
         for keys in ("Ctrl+Return", "Ctrl+Enter"):
             shortcut = QShortcut(QKeySequence(keys), self.tree_edit)
             shortcut.setContext(Qt.ShortcutContext.WidgetShortcut)
@@ -94,6 +99,10 @@ class TreeSource(QWidget):
     # A node of the abstract tree has no position to show, the step explanation says what happens
     def show_node(self, state: TreeState, move: int | None, depth: int) -> None:
         pass
+
+    # A node of the abstract tree has no picture, so it cannot be expanded
+    def node_picture(self, state: TreeState, move: int | None, depth: int) -> None:
+        return None
 
     # Text of the bubble over a node: who moves there or the value of the leaf, and the leaves below it
     def node_tooltip(self, state: TreeState, move: int | None, depth: int) -> str:

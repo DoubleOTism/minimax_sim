@@ -14,6 +14,7 @@ from PySide6.QtWidgets import (
     QHBoxLayout,
     QLabel,
     QScrollArea,
+    QSizePolicy,
     QToolButton,
     QVBoxLayout,
     QWidget,
@@ -48,7 +49,7 @@ PANEL_MAX_WIDTH = 480
 
 # Column of widgets on the right side of the page, scrolls when it does not fit
 class SidePanel(QScrollArea):
-    # source is the input of the game, it takes all the free height
+    # source is the input of the game at the top, the counters sit at the bottom and the free height is between them
     def __init__(self, source: QWidget) -> None:
         super().__init__()
         self.setMinimumWidth(PANEL_MIN_WIDTH)
@@ -62,7 +63,9 @@ class SidePanel(QScrollArea):
         column.setContentsMargins(PANEL_PADDING, PANEL_PADDING, PANEL_PADDING, PANEL_PADDING)
         self.setWidget(content)
 
-        column.addWidget(source, 1)
+        # The input never takes more height than it needs, the free height stays above the counters
+        source.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Maximum)
+        column.addWidget(source)
 
         # What happened in the current step, it folds away with the arrow, for example on a small projector
         # The question mark next to the arrow explains the symbols of the tree
@@ -93,6 +96,8 @@ class SidePanel(QScrollArea):
         self._step_toggled(STEP_SHOWN_ON_START)
 
         # Counters of both algorithms side by side, one row per Stats field
+        # They stay at the bottom, folding the step explanation does not move them
+        column.addStretch()
         stats_group = QGroupBox(texts.STATS_TITLE)
         table = QGridLayout(stats_group)
         column.addWidget(stats_group)

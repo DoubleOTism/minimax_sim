@@ -15,6 +15,8 @@ and which value it shows. After the last step the optimal line from the root
 is drawn in green.
 Edges carry the label of their move when the game has one, and a game can show
 a bubble with more about a node when the mouse stays over it.
+A game with a picture of its positions lets a double click expand a node,
+the picture is then drawn in place of the node and the edges lead out of it.
 Colours come from the system theme, so the tree works in light and dark mode.
 """
 
@@ -26,7 +28,9 @@ from PySide6.QtGui import (
     QColor,
     QFont,
     QFontMetricsF,
+    QMouseEvent,
     QPainter,
+    QPainterPath,
     QPen,
     QResizeEvent,
     QWheelEvent,
@@ -54,7 +58,8 @@ NODE_SIZE = 40
 X_SPACING = 1.6
 
 # Distance between levels, in node sizes
-Y_SPACING = 2.6
+# Between two expanded nodes the edge must still be seen, under the value and around the move label
+Y_SPACING = 3.4
 
 # Line width of nodes and edges in pixels, the active node and its path get double
 LINE_WIDTH = 2
@@ -95,6 +100,23 @@ ZOOM_STEP = 1.25
 # Free space kept around the active node when the view follows it, in node sizes
 FOLLOW_MARGIN = 2
 
+# Size of the picture in an expanded node, in pixels
+# Neighbouring leaves are X_SPACING node sizes apart, two expanded leaves must not overlap
+PICTURE_SIZE = 52
+
+# Free space between the picture and the frame of an expanded node, in pixels
+FRAME_MARGIN = 3
+
+# Radius of the round corners of an expanded MIN node, a MAX node keeps sharp corners
+FRAME_RADIUS = 12
+
+# Free space between an expanded node and its value below it, in pixels
+VALUE_GAP = 2
+
+# Free space around the tree, from the centres of the outer nodes to the edge of the scene, in pixels
+# An expanded leaf at the bottom with its value under it must fit in
+TREE_MARGIN = 64
+
 
 # Scrollable view of the tree, MAX nodes are squares and MIN nodes are circles
 class TreeView(QGraphicsView):
@@ -119,6 +141,12 @@ class TreeView(QGraphicsView):
         # Text of the bubble over a node, an empty text shows no bubble
         self.node_tooltip: Callable[[NodeId], str] | None = None
 
+        # Picture of the position in a node, drawn when the node is expanded, None if the game has none
+        self.node_picture: Callable[[NodeId], QGraphicsItem | None] | None = None
+
+        # Nodes expanded by a double click, they stay expanded until the next tree
+        self._expanded: set[NodeId] = set()
+
         # Layout that is drawn and the last snapshot with show_bounds, None while nothing is drawn
         self._layout: Layout | None = None
         self._last_draw: tuple[Snapshot, bool] | None = None
@@ -128,6 +156,9 @@ class TreeView(QGraphicsView):
         self._labels: dict[NodeId, QGraphicsRectItem] = {}
         self._shapes: dict[NodeId, QAbstractGraphicsShapeItem] = {}
         self._values: dict[NodeId, QGraphicsSimpleTextItem] = {}
+
+        # Patches of the background under the values of expanded nodes, they hide the edges under the value
+        self._value_patches: dict[NodeId, QGraphicsRectItem] = {}
 
         # How each node looked at the last step, see _update
         self._looks: dict[NodeId, tuple[Status, bool, str, bool]] = {}
@@ -140,6 +171,7 @@ class TreeView(QGraphicsView):
     # With show_bounds the active node and its ancestors get their α and β next to them
     def draw(self, layout: Layout, snapshot: Snapshot, show_bounds: bool) -> None:
         if layout is not self._layout:
+            self._expanded.clear()
             self._build(layout)
         self._last_draw = (snapshot, show_bounds)
         self._update(snapshot, show_bounds)
@@ -156,7 +188,7 @@ class TreeView(QGraphicsView):
 
     # Create every edge, label and node of a new tree, how they look is set by _update
     def _build(self, layout: Layout) -> None:
-        self.clear_tree()
+        self._clear_scene()
         self._layout = layout
         scene = self.scene()
 
@@ -184,13 +216,19 @@ class TreeView(QGraphicsView):
                     self._labels[child] = self._add_label(start + (end - start) * LABEL_POSITION, label)
 
         # Nodes last, the value text is a child of the shape, so it hides and shows with it
+        # An expanded node is a frame with the picture of its position
         for layout_node in layout.nodes.values():
             node = layout_node.node
             center = self._position(layout, node)
-            rect = QRectF(center.x() - NODE_SIZE / 2, center.y() - NODE_SIZE / 2, NODE_SIZE, NODE_SIZE)
-            shape = scene.addRect(rect) if layout_node.is_max else scene.addEllipse(rect)
+            if node in self._expanded:
+                shape = self._add_frame(center, layout_node.is_max, self.node_picture(node))
+            else:
+                rect = QRectF(center.x() - NODE_SIZE / 2, center.y() - NODE_SIZE / 2, NODE_SIZE, NODE_SIZE)
+                shape = scene.addRect(rect) if layout_node.is_max else scene.addEllipse(rect)
             shape.setData(NODE_KEY, node)
             self._shapes[node] = shape
+            if node in self._expanded:
+                self._value_patches[node] = self._add_patch(shape)
             self._values[node] = self._add_value(shape)
 
     # Change only what looks different than at the last step
@@ -219,7 +257,7 @@ class TreeView(QGraphicsView):
             for node in snapshot.path:
                 if self._layout.nodes[node].children:
                     node_state = snapshot.nodes[node]
-                    self._bounds.append(self._add_bounds(self._shapes[node], node_state.alpha, node_state.beta))
+                    self._bounds.append(self._add_bounds(node, node_state.alpha, node_state.beta))
 
     # Give one node, the edge leading to it and its label the look of its status
     def _restyle(self, node: NodeId, status: Status, on_line: bool, value_text: str, hidden: bool) -> None:
@@ -230,12 +268,22 @@ class TreeView(QGraphicsView):
         shape.setBrush(self._brush(status, on_line))
 
         # Value in the middle of the node, centred again because the width of the text changes
+        # An expanded node has its picture in the middle, the value goes under it on a patch of the background
         value = self._values[node]
         value.setText(value_text)
-        value.setBrush(palette.highlightedText() if status is Status.ACTIVE else palette.text())
         size = value.boundingRect()
         center = shape.boundingRect().center()
-        value.setPos(center.x() - size.width() / 2, center.y() - size.height() / 2)
+        x = center.x() - size.width() / 2
+        patch = self._value_patches.get(node)
+        if patch is None:
+            value.setBrush(palette.highlightedText() if status is Status.ACTIVE else palette.text())
+            value.setPos(x, center.y() - size.height() / 2)
+        else:
+            value.setBrush(palette.text())
+            y = center.y() + self._half_size(node) + VALUE_GAP
+            value.setPos(x, y)
+            patch.setRect(QRectF(x - LABEL_PADDING, y, size.width() + 2 * LABEL_PADDING, size.height()))
+            patch.setVisible(bool(value_text))
 
         # The root has no edge and no label, each edge looks like the child it leads to
         edge = self._edges.get(node)
@@ -251,13 +299,19 @@ class TreeView(QGraphicsView):
 
     # Remove everything drawn, used when there is no tree to show
     def clear_tree(self) -> None:
-        self.scene().clear()
+        self._clear_scene()
         self._layout = None
         self._last_draw = None
+        self._expanded.clear()
+
+    # Remove all items from the scene, the tree is built again after it
+    def _clear_scene(self) -> None:
+        self.scene().clear()
         self._edges.clear()
         self._labels.clear()
         self._shapes.clear()
         self._values.clear()
+        self._value_patches.clear()
         self._looks.clear()
         self._bounds = []
 
@@ -279,6 +333,8 @@ class TreeView(QGraphicsView):
         super().resizeEvent(event)
         if self._follows_window:
             self._fit()
+        else:
+            self._set_scroll_area()
 
     # Called by Qt for the mouse wheel, Ctrl + wheel zooms, the wheel alone scrolls as usual
     def wheelEvent(self, event: QWheelEvent) -> None:
@@ -290,10 +346,26 @@ class TreeView(QGraphicsView):
     # Called by Qt when the system colours change, the whole tree is built again in the new colours
     def changeEvent(self, event: QEvent) -> None:
         super().changeEvent(event)
-        if event.type() is QEvent.Type.PaletteChange and self._layout is not None and self._last_draw is not None:
-            layout = self._layout
-            self._layout = None
-            self.draw(layout, *self._last_draw)
+        if event.type() is QEvent.Type.PaletteChange:
+            self._rebuild()
+
+    # Called by Qt for a double click, it expands a node with a picture or gives the node back
+    def mouseDoubleClickEvent(self, event: QMouseEvent) -> None:
+        node = self._node_at(event.position().toPoint())
+        if node in self._expanded:
+            self._expanded.remove(node)
+            self._rebuild()
+        elif node is not None and self.node_picture is not None and self.node_picture(node) is not None:
+            self._expanded.add(node)
+            self._rebuild()
+        event.accept()
+
+    # Build the same tree again and give it the look of the last step
+    def _rebuild(self) -> None:
+        if self._layout is None or self._last_draw is None:
+            return
+        self._build(self._layout)
+        self._update(*self._last_draw)
 
     # Called by Qt for events in the visible area, a tooltip event over a node shows its bubble
     def viewportEvent(self, event: QEvent) -> bool:
@@ -322,10 +394,12 @@ class TreeView(QGraphicsView):
         target = max(MIN_HAND_ZOOM, min(current * factor, MAX_HAND_ZOOM))
         self._follows_window = False
         self.scale(target / current, target / current)
+        self._set_scroll_area()
 
     # Zoom so the whole tree fills the view, within MIN_ZOOM and MAX_ZOOM
     def _fit(self) -> None:
-        tree = self.sceneRect()
+        self._set_scroll_area()
+        tree = self.scene().sceneRect()
         view = self.viewport().rect()
         if tree.isEmpty() or view.isEmpty():
             return
@@ -335,15 +409,36 @@ class TreeView(QGraphicsView):
         self.scale(zoom, zoom)
         self.centerOn(tree.center())
 
+    # Area the view can scroll over, the tree alone while it is fitted to the window
+    # Zoomed by hand it gets half of the visible area on every side, so any node can be scrolled to the middle
+    # The point in the middle of the view stays where it was
+    def _set_scroll_area(self) -> None:
+        tree = self.scene().sceneRect()
+        if self._follows_window:
+            self.setSceneRect(tree)
+            return
+        middle = self.mapToScene(self.viewport().rect().center())
+        zoom = self.transform().m11()
+        dx = self.viewport().width() / 2 / zoom
+        dy = self.viewport().height() / 2 / zoom
+        self.setSceneRect(tree.adjusted(-dx, -dy, dx, dy))
+        self.centerOn(middle)
+
+    # Half of the width of a node as drawn, an expanded node is larger
+    def _half_size(self, node: NodeId) -> float:
+        if node in self._expanded:
+            return PICTURE_SIZE / 2 + FRAME_MARGIN
+        return NODE_SIZE / 2
+
     # Whether a node with this status is left out of the drawing
     def _is_hidden(self, status: Status) -> bool:
         return self.hide_unvisited and status is Status.UNVISITED
 
-    # Area of the whole tree in scene pixels, with half a node of margin around it
+    # Area of the whole tree in scene pixels, with TREE_MARGIN around it
     def _tree_rect(self, layout: Layout) -> QRectF:
         width = (layout.width - 1) * X_SPACING * NODE_SIZE
         height = layout.depth * Y_SPACING * NODE_SIZE
-        return QRectF(-NODE_SIZE, -NODE_SIZE, width + 2 * NODE_SIZE, height + 2 * NODE_SIZE)
+        return QRectF(-TREE_MARGIN, -TREE_MARGIN, width + 2 * TREE_MARGIN, height + 2 * TREE_MARGIN)
 
     # Centre of a node in scene pixels
     def _position(self, layout: Layout, node: NodeId) -> QPointF:
@@ -387,6 +482,13 @@ class TreeView(QGraphicsView):
         item.setFont(font)
         return item
 
+    # Empty patch of the background for the value of an expanded node, _restyle sizes it to the value
+    def _add_patch(self, shape: QGraphicsItem) -> QGraphicsRectItem:
+        patch = QGraphicsRectItem(shape)
+        patch.setPen(QPen(Qt.PenStyle.NoPen))
+        patch.setBrush(self.palette().base())
+        return patch
+
     # Move label centred on point, on a patch of the background that hides the edge under it
     # The text is a child of the patch, _restyle colours it
     def _add_label(self, point: QPointF, text: str) -> QGraphicsRectItem:
@@ -406,14 +508,29 @@ class TreeView(QGraphicsView):
         return patch
 
     # α above β, to the upper right of a node
-    def _add_bounds(self, shape: QGraphicsItem, alpha: float, beta: float) -> QGraphicsSimpleTextItem:
+    def _add_bounds(self, node: NodeId, alpha: float, beta: float) -> QGraphicsSimpleTextItem:
         font = QFont()
         font.setPixelSize(int(NODE_SIZE * BOUNDS_TEXT_SIZE))
         item = self.scene().addSimpleText(f"α = {number_text(alpha)}\nβ = {number_text(beta)}", font)
         item.setBrush(self.palette().text())
-        center = shape.boundingRect().center()
-        item.setPos(center.x() + NODE_SIZE * 0.55, center.y() - NODE_SIZE * 0.65)
+        center = self._shapes[node].boundingRect().center()
+        half = self._half_size(node)
+        item.setPos(center.x() + half + NODE_SIZE * 0.05, center.y() - half - NODE_SIZE * 0.15)
         return item
+
+    # Frame of an expanded node with the picture of its position inside, the picture becomes its child
+    # A MAX node keeps sharp corners and a MIN node gets round ones, like the square and the circle
+    def _add_frame(self, center: QPointF, is_max: bool, picture: QGraphicsItem) -> QAbstractGraphicsShapeItem:
+        half = PICTURE_SIZE / 2 + FRAME_MARGIN
+        radius = 0 if is_max else FRAME_RADIUS
+        path = QPainterPath()
+        path.addRoundedRect(QRectF(center.x() - half, center.y() - half, 2 * half, 2 * half), radius, radius)
+        frame = self.scene().addPath(path)
+        bounds = picture.boundingRect()
+        picture.setParentItem(frame)
+        picture.setScale(PICTURE_SIZE / max(bounds.width(), bounds.height()))
+        picture.setPos(center.x() - PICTURE_SIZE / 2, center.y() - PICTURE_SIZE / 2)
+        return frame
 
 
 # Status of every node in the layout, everything below a pruned node counts as pruned too
